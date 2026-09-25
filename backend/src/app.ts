@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
+import fs from 'fs';
 import v1Routes from './routes/v1/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
@@ -33,20 +35,33 @@ export function createApp() {
   // 5. Global Rate Limiter
   app.use('/api/', generalRateLimiter);
 
-  // Root welcome ping
-  app.get('/', (req, res) => {
-    res.json({
-      name: 'DXGen AI Content Generation Engine & Public API',
-      version: '1.0.0',
-      status: 'healthy',
-      documentation: '/api/v1/health'
-    });
-  });
-
   // 6. Versioned API Routes (/api/v1)
   app.use('/api/v1', v1Routes);
 
-  // 7. 404 Handler
+  // 7. Serve frontend build directly (Standalone VPS deployment without Nginx)
+  const frontendDistPath = path.resolve(process.cwd(), 'frontend/dist');
+  if (fs.existsSync(frontendDistPath)) {
+    app.use(express.static(frontendDistPath));
+    app.get('*', (req, res, next) => {
+      if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(frontendDistPath, 'index.html'));
+      } else {
+        next();
+      }
+    });
+  } else {
+    // Root welcome ping when frontend build not present
+    app.get('/', (req, res) => {
+      res.json({
+        name: 'DXGen AI Content Generation Engine & Public API',
+        version: '1.0.0',
+        status: 'healthy',
+        documentation: '/api/v1/health'
+      });
+    });
+  }
+
+  // 8. 404 Handler for API routes
   app.use((req, res, next) => {
     const err: any = new Error(`Resource not found: ${req.method} ${req.originalUrl}`);
     err.statusCode = 404;
@@ -54,7 +69,7 @@ export function createApp() {
     next(err);
   });
 
-  // 8. Central Error Handler
+  // 9. Central Error Handler
   app.use(errorHandler);
 
   return app;
