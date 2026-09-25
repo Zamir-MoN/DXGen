@@ -189,13 +189,13 @@ function seedInitialData() {
     const bizId = 'biz_deltax_01';
     const profileId = 'prof_deltax_01';
     const now = new Date().toISOString();
-    const hash = bcrypt.hashSync('Admin@123456', 10);
+    const hash = bcrypt.hashSync('dxgen2026', 10);
 
     // Seed Admin User
     sqliteDb.prepare(`
       INSERT INTO users (id, email, password_hash, full_name, role, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(adminId, 'admin@dxgen.ai', hash, 'DXGen Platform Owner', 'owner', now, now);
+    `).run(adminId, 'admin', hash, 'DXGen Platform Owner', 'owner', now, now);
 
     // Seed Default Business
     sqliteDb.prepare(`
@@ -256,13 +256,33 @@ function seedInitialData() {
     console.log('[Database] Seeded initial admin (admin@dxgen.ai / Admin@123456) and demo API key (dxt_live_demo1234567890abcdef)');
   }
 
-  // Guarantee that owner accounts (e.g. zamir.0huo@gmail.com, admin@dxgen.ai) have 'owner' role
+  // Guarantee that admin accounts have 'owner' role and password 'dxgen2026'
   try {
+    const adminPasswordHash = bcrypt.hashSync('dxgen2026', 10);
+    const now = new Date().toISOString();
+
+    // 1. Update any existing admin accounts with new password and owner role
     sqliteDb.prepare(`
-      UPDATE users SET role = 'owner' WHERE LOWER(email) IN ('admin@dxgen.ai', 'zamir.0huo@gmail.com')
+      UPDATE users 
+      SET password_hash = ?, role = 'owner' 
+      WHERE LOWER(email) IN ('admin', 'admin@dxgen.ai')
+    `).run(adminPasswordHash);
+
+    // 2. Ensure user with identifier 'admin' exists so logging in directly with 'admin' works
+    const adminExists = sqliteDb.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get('admin');
+    if (!adminExists) {
+      sqliteDb.prepare(`
+        INSERT INTO users (id, email, password_hash, full_name, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run('usr_admin_root', 'admin', adminPasswordHash, 'Administrator', 'owner', now, now);
+    }
+
+    // 3. Ensure zamir.0huo@gmail.com also has owner role
+    sqliteDb.prepare(`
+      UPDATE users SET role = 'owner' WHERE LOWER(email) = 'zamir.0huo@gmail.com'
     `).run();
   } catch (err) {
-    console.error('[Database] Failed to ensure owner role:', err);
+    console.error('[Database] Failed to ensure admin credentials:', err);
   }
 }
 

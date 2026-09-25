@@ -30,8 +30,8 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleUseDemo = () => {
-    setEmail('admin@dxgen.ai');
-    setPassword('Admin@123456');
+    setEmail('admin');
+    setPassword('dxgen2026');
   };
 
   return (
@@ -55,8 +55,8 @@ export const LoginPage: React.FC = () => {
         {/* Demo Fast Login Pill */}
         <div className="p-3 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-between text-xs">
           <div className="space-y-0.5">
-            <p className="font-semibold text-brand-300">Fast Demo Account</p>
-            <p className="text-[11px] text-slate-400">admin@dxgen.ai / Admin@123456</p>
+            <p className="font-semibold text-brand-300">Admin Account</p>
+            <p className="text-[11px] text-slate-400">admin / dxgen2026</p>
           </div>
           <button
             type="button"
@@ -69,15 +69,15 @@ export const LoginPage: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-300">Work Email</label>
+            <label className="font-semibold text-slate-300">Email or Username</label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+                placeholder="admin or you@company.com"
                 className="w-full pl-9 pr-3 py-2.5 bg-[#090d16] border border-[#1e293b] focus:border-brand-500 rounded-lg text-white outline-none"
               />
             </div>

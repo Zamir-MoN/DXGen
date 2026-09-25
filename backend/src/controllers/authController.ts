@@ -6,7 +6,7 @@ import { db } from '../database/db.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
 
-const ADMIN_EMAILS = ['admin@dxgen.ai', 'zamir.0huo@gmail.com'];
+const ADMIN_EMAILS = ['admin', 'admin@dxgen.ai', 'zamir.0huo@gmail.com'];
 
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction) {
@@ -82,11 +82,18 @@ export class AuthController {
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
-      const normalizedEmail = email.toLowerCase().trim();
-      const user = await db.queryOne(
-        'SELECT * FROM users WHERE email = ?',
+      const normalizedEmail = (email || '').toLowerCase().trim();
+      let user = await db.queryOne(
+        'SELECT * FROM users WHERE LOWER(email) = ?',
         [normalizedEmail]
       );
+
+      // Support 'admin' as alias for 'admin@dxgen.ai' and vice versa
+      if (!user && (normalizedEmail === 'admin' || normalizedEmail === 'admin@dxgen.ai')) {
+        user = await db.queryOne(
+          'SELECT * FROM users WHERE LOWER(email) IN ("admin", "admin@dxgen.ai") LIMIT 1'
+        );
+      }
 
       if (!user) {
         const err: AppError = new Error('Invalid email or password.');
