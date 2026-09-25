@@ -18,23 +18,24 @@ export class UsageController {
       const totalGenParams = isOwnerOrAdmin ? [] : [userId];
       const totalGen = await db.queryOne<{ count: number }>(totalGenerationsQuery, totalGenParams);
 
-      // 2. Requests Today & Month
+      // 2. Requests Today & Month (Counts true AI Generation & Developer API calls)
+      const apiFilter = "(endpoint LIKE '%/generate%' OR api_key_id IS NOT NULL)";
       const todayQuery = isOwnerOrAdmin
-        ? 'SELECT COUNT(*) as count FROM api_requests WHERE created_at >= ?'
-        : 'SELECT COUNT(*) as count FROM api_requests WHERE user_id = ? AND created_at >= ?';
+        ? `SELECT COUNT(*) as count FROM api_requests WHERE created_at >= ? AND ${apiFilter}`
+        : `SELECT COUNT(*) as count FROM api_requests WHERE user_id = ? AND created_at >= ? AND ${apiFilter}`;
       const todayParams = isOwnerOrAdmin ? [todayStr] : [userId, todayStr];
       const reqsToday = await db.queryOne<{ count: number }>(todayQuery, todayParams);
 
       const monthQuery = isOwnerOrAdmin
-        ? 'SELECT COUNT(*) as count, SUM(input_tokens + output_tokens) as total_tokens, AVG(response_time_ms) as avg_latency FROM api_requests WHERE created_at >= ?'
-        : 'SELECT COUNT(*) as count, SUM(input_tokens + output_tokens) as total_tokens, AVG(response_time_ms) as avg_latency FROM api_requests WHERE user_id = ? AND created_at >= ?';
+        ? `SELECT COUNT(*) as count, SUM(input_tokens + output_tokens) as total_tokens, AVG(response_time_ms) as avg_latency FROM api_requests WHERE created_at >= ? AND ${apiFilter}`
+        : `SELECT COUNT(*) as count, SUM(input_tokens + output_tokens) as total_tokens, AVG(response_time_ms) as avg_latency FROM api_requests WHERE user_id = ? AND created_at >= ? AND ${apiFilter}`;
       const monthParams = isOwnerOrAdmin ? [startOfMonthStr] : [userId, startOfMonthStr];
       const monthStats = await db.queryOne<{ count: number; total_tokens: number; avg_latency: number }>(monthQuery, monthParams);
 
       // 3. Success vs Failed
       const successQuery = isOwnerOrAdmin
-        ? 'SELECT status_code, COUNT(*) as count FROM api_requests GROUP BY status_code'
-        : 'SELECT status_code, COUNT(*) as count FROM api_requests WHERE user_id = ? GROUP BY status_code';
+        ? `SELECT status_code, COUNT(*) as count FROM api_requests WHERE ${apiFilter} GROUP BY status_code`
+        : `SELECT status_code, COUNT(*) as count FROM api_requests WHERE user_id = ? AND ${apiFilter} GROUP BY status_code`;
       const successParams = isOwnerOrAdmin ? [] : [userId];
       const statusRows = await db.query<{ status_code: number; count: number }>(successQuery, successParams);
 

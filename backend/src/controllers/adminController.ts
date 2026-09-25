@@ -11,7 +11,7 @@ export class AdminController {
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users'),
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM api_keys'),
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM content_generations'),
-        db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM api_requests'),
+        db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM api_requests WHERE endpoint LIKE "%/generate%" OR api_key_id IS NOT NULL'),
       ]);
 
       const recentErrors = await db.query(
@@ -235,7 +235,7 @@ export class AdminController {
           COALESCE(SUM(input_tokens), 0) as input_tokens, 
           COALESCE(SUM(output_tokens), 0) as output_tokens 
         FROM api_requests 
-        WHERE created_at >= ?
+        WHERE created_at >= ? AND (endpoint LIKE '%/generate%' OR api_key_id IS NOT NULL OR input_tokens > 0)
       `, [todayStr]);
 
       const monthStats = await db.queryOne<{ count: number; total_tokens: number }>(`
@@ -243,7 +243,7 @@ export class AdminController {
           COUNT(*) as count, 
           COALESCE(SUM(input_tokens + output_tokens), 0) as total_tokens 
         FROM api_requests 
-        WHERE created_at >= ?
+        WHERE created_at >= ? AND (endpoint LIKE '%/generate%' OR api_key_id IS NOT NULL OR input_tokens > 0)
       `, [startOfMonthStr]);
 
       const throttleEvents = await db.queryOne<{ count: number }>(`

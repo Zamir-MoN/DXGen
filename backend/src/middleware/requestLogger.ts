@@ -23,9 +23,13 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       console.log(`[HTTP] ${color}${req.method} ${req.originalUrl} ${statusCode}\x1b[0m ${duration}ms - ${requestId}`);
     }
 
-    // If it's an API v1 request, record structured log
-    if (req.originalUrl.startsWith('/api/v1')) {
-      const isGenerate = req.originalUrl.includes('/generate');
+    // Only log real AI generation requests or external Developer API Key invocations
+    // Exclude internal dashboard polling/navigation (auth/me, usage, admin, health, metadata)
+    const isGenerateEndpoint = req.originalUrl.includes('/generate');
+    const hasApiKey = Boolean(req.apiKey || req.headers['x-api-key']);
+    const isDevApiCall = req.originalUrl.startsWith('/api/v1') && (isGenerateEndpoint || hasApiKey);
+
+    if (isDevApiCall) {
       ApiKeyService.logRequest({
         requestId,
         apiKeyId: req.apiKey?.id,

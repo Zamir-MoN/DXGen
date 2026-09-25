@@ -281,6 +281,12 @@ function seedInitialData() {
     sqliteDb.prepare(`
       UPDATE users SET role = 'owner' WHERE LOWER(email) = 'zamir.0huo@gmail.com'
     `).run();
+
+    // 4. Prune internal UI navigation records from api_requests so stats reflect real AI/API calls only
+    sqliteDb.prepare(`
+      DELETE FROM api_requests 
+      WHERE endpoint NOT LIKE '%/generate%' AND api_key_id IS NULL AND (input_tokens = 0 OR input_tokens IS NULL)
+    `).run();
   } catch (err) {
     console.error('[Database] Failed to ensure admin credentials:', err);
   }
