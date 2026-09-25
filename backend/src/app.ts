@@ -12,8 +12,9 @@ import { config } from './config/index.js';
 export function createApp() {
   const app = express();
 
-  // 1. Security Headers
+  // 1. Security Headers (disable CSP auto-upgrade to HTTPS for raw HTTP IP access)
   app.use(helmet({
+    contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   }));
 
@@ -39,8 +40,16 @@ export function createApp() {
   app.use('/api/v1', v1Routes);
 
   // 7. Serve frontend build directly (Standalone VPS deployment without Nginx)
-  const frontendDistPath = path.resolve(process.cwd(), 'frontend/dist');
+  let frontendDistPath = path.resolve(process.cwd(), 'frontend/dist');
+  if (!fs.existsSync(frontendDistPath)) {
+    frontendDistPath = path.resolve(process.cwd(), '../frontend/dist');
+  }
+  if (!fs.existsSync(frontendDistPath)) {
+    frontendDistPath = path.resolve(__dirname, '../../../frontend/dist');
+  }
+
   if (fs.existsSync(frontendDistPath)) {
+    console.log(`[Server] Serving frontend SPA from ${frontendDistPath}`);
     app.use(express.static(frontendDistPath));
     app.get('*', (req, res, next) => {
       if (!req.path.startsWith('/api')) {
