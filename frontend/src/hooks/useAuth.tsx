@@ -5,11 +5,12 @@ import { api } from '../services/api.js';
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (payload: { email: string; password: string; fullName: string; businessName?: string }) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (payload: { email: string; password: string; fullName: string; businessName?: string }) => Promise<User>;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,20 +40,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUser();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const res = await api.post('/auth/login', { email, password });
     const { token: receivedToken, user: receivedUser } = res.data;
     localStorage.setItem('dxgen_token', receivedToken);
     setToken(receivedToken);
     setUser(receivedUser);
+    return receivedUser;
   };
 
-  const register = async (payload: { email: string; password: string; fullName: string; businessName?: string }) => {
+  const register = async (payload: { email: string; password: string; fullName: string; businessName?: string }): Promise<User> => {
     const res = await api.post('/auth/register', payload);
     const { token: receivedToken, user: receivedUser } = res.data;
     localStorage.setItem('dxgen_token', receivedToken);
     setToken(receivedToken);
     setUser(receivedUser);
+    return receivedUser;
   };
 
   const logout = () => {
@@ -61,8 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, isAuthenticated: !!user, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

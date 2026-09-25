@@ -6,13 +6,16 @@ import { db } from '../database/db.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
 
+const ADMIN_EMAILS = ['admin@dxgen.ai', 'zamir.0huo@gmail.com'];
+
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password, fullName, businessName } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
 
       // Check if email already exists
-      const existing = await db.queryOne('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
+      const existing = await db.queryOne('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
       if (existing) {
         const err: AppError = new Error('An account with this email address already exists.');
         err.statusCode = 400;
@@ -24,14 +27,15 @@ export class AuthController {
       const hash = await bcrypt.hash(password, 10);
       const now = new Date().toISOString();
 
-      // Check if this is the first user (assign owner if first, else business_user)
+      // Check if this is the owner email or first user
       const userCount = await db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users');
-      const role = (userCount?.count || 0) === 0 ? 'owner' : 'business_user';
+      const isOwner = ADMIN_EMAILS.includes(normalizedEmail) || (userCount?.count || 0) === 0;
+      const role = isOwner ? 'owner' : 'business_user';
 
       await db.execute(`
         INSERT INTO users (id, email, password_hash, full_name, role, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [userId, email.toLowerCase().trim(), hash, fullName.trim(), role, now, now]);
+      `, [userId, normalizedEmail, hash, fullName.trim(), role, now, now]);
 
       // Create default business
       const bizId = `biz_${uuidv4().replace(/-/g, '').slice(0, 16)}`;
@@ -52,7 +56,7 @@ export class AuthController {
       `, [profId, bizId, userId, bName, now, now]);
 
       const token = jwt.sign(
-        { id: userId, email: email.toLowerCase().trim(), role, fullName: fullName.trim() },
+        { id: userId, email: normalizedEmail, role, fullName: fullName.trim() },
         config.jwtSecret,
         { expiresIn: '7d' }
       );
@@ -63,7 +67,7 @@ export class AuthController {
         token,
         user: {
           id: userId,
-          email: email.toLowerCase().trim(),
+          email: normalizedEmail,
           fullName: fullName.trim(),
           role,
           businessId: bizId,
@@ -78,9 +82,10 @@ export class AuthController {
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
       const user = await db.queryOne(
         'SELECT * FROM users WHERE email = ?',
-        [email.toLowerCase().trim()]
+        [normalizedEmail]
       );
 
       if (!user) {
@@ -96,6 +101,12 @@ export class AuthController {
         err.statusCode = 401;
         err.code = 'INVALID_CREDENTIALS';
         return next(err);
+      }
+
+      // Automatically promote designated admin/owner emails
+      if (ADMIN_EMAILS.includes(normalizedEmail) && user.role !== 'owner') {
+        await db.execute("UPDATE users SET role = 'owner' WHERE id = ?", [user.id]);
+        user.role = 'owner';
       }
 
       // Fetch primary business
@@ -139,13 +150,23 @@ export class AuthController {
         return next(err);
       }
 
+      const normalizedEmail = user.email.toLowerCase().trim();
+      if (ADMIN_EMAILS.includes(normalizedEmail) && user.role !== 'owner') {
+        await db.execute("UPDATE users SET role = 'owner' WHERE id = ?", [user.id]);
+        user.role = 'owner';
+      }
+
       const businesses = await db.query('SELECT id, name, created_at FROM businesses WHERE user_id = ?', [userId]);
       const profiles = await db.query('SELECT * FROM business_profiles WHERE user_id = ?', [userId]);
 
       res.status(200).json({
         success: true,
         user: {
-          ...user,
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role,
+          createdAt: user.created_at,
           businesses,
           profiles
         }

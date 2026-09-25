@@ -17,7 +17,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireAdmin?: boole
   children,
   requireAdmin = false
 }) => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
   if (isLoading) {
     return (
@@ -31,11 +31,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireAdmin?: boole
     return <Navigate to="/login" replace />;
   }
 
-  if (requireAdmin && user?.role !== 'owner' && user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/generate" replace />;
   }
 
   return <>{children}</>;
+};
+
+const RootIndexRoute: React.FC = () => {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) {
+    return <Navigate to="/generate" replace />;
+  }
+  return <DashboardPage />;
 };
 
 export const App: React.FC = () => {
@@ -55,13 +63,46 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           >
-            <Route index element={<DashboardPage />} />
+            {/* Root index: Admin sees DashboardPage, Normal user redirects to /generate */}
+            <Route index element={<RootIndexRoute />} />
+            
+            {/* Core user routes: AI Content Studio */}
             <Route path="generate" element={<GeneratorPage />} />
             <Route path="history" element={<HistoryPage />} />
-            <Route path="api-keys" element={<ApiKeysPage />} />
-            <Route path="usage" element={<UsagePage />} />
-            <Route path="profiles" element={<ProfilesPage />} />
-            <Route path="docs" element={<DocsPage />} />
+
+            {/* Admin-only routes */}
+            <Route
+              path="api-keys"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ApiKeysPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="usage"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <UsagePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="profiles"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ProfilesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="docs"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <DocsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="admin"
               element={

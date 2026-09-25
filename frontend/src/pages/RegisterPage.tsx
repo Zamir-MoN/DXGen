@@ -18,13 +18,17 @@ export const RegisterPage: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      await register({
+      const regUser = await register({
         fullName: fullName.trim(),
         email: email.trim(),
         password,
         businessName: businessName.trim()
       });
-      navigate('/');
+      if (regUser?.role === 'owner' || regUser?.role === 'admin') {
+        navigate('/');
+      } else {
+        navigate('/generate');
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed.');
     } finally {

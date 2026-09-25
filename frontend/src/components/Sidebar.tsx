@@ -23,19 +23,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
 
-  const navItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
-    { to: '/history', label: 'Content History', icon: History },
-    { to: '/api-keys', label: 'API Keys', icon: KeyRound },
-    { to: '/usage', label: 'Usage & Analytics', icon: BarChart3 },
-    { to: '/profiles', label: 'Business Profiles', icon: Building2 },
-    { to: '/docs', label: 'Documentation', icon: FileCode2 },
-  ];
-
-  if (isAdmin) {
-    navItems.push({ to: '/admin', label: 'Admin Panel', icon: ShieldCheck, badge: 'Owner' });
-  }
+  // Admin sees full platform management suite.
+  // Normal users ONLY access the AI Content Generation features (Generate & History).
+  const navItems = isAdmin
+    ? [
+        { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+        { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
+        { to: '/history', label: 'Content History', icon: History },
+        { to: '/api-keys', label: 'API Keys', icon: KeyRound },
+        { to: '/usage', label: 'Usage & Analytics', icon: BarChart3 },
+        { to: '/profiles', label: 'Business Profiles', icon: Building2 },
+        { to: '/docs', label: 'Documentation', icon: FileCode2 },
+        { to: '/admin', label: 'Admin Panel', icon: ShieldCheck, badge: 'Owner' },
+      ]
+    : [
+        { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
+        { to: '/history', label: 'Content History', icon: History },
+      ];
 
   return (
     <>
@@ -109,7 +113,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
         <div className="p-3 border-t border-[#1e293b] bg-[#0c1322]">
           <div className="flex items-center justify-between p-2 rounded-lg bg-[#0f172a] border border-[#1e293b]">
             <div className="min-w-0 pr-2">
-              <p className="text-xs font-semibold text-white truncate">{user?.fullName || 'User'}</p>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <p className="text-xs font-semibold text-white truncate">
+                  {user?.fullName || user?.email?.split('@')[0] || 'User'}
+                </p>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                  user?.role === 'owner'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                    : user?.role === 'admin'
+                    ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+                    : 'bg-slate-700/50 text-slate-300 border border-slate-600/30'
+                }`}>
+                  {user?.role === 'owner' ? 'Owner' : user?.role === 'admin' ? 'Admin' : 'User'}
+                </span>
+              </div>
               <p className="text-[11px] text-slate-400 truncate">{user?.email || 'admin@dxgen.ai'}</p>
             </div>
             <button

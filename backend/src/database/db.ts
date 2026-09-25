@@ -255,6 +255,15 @@ function seedInitialData() {
 
     console.log('[Database] Seeded initial admin (admin@dxgen.ai / Admin@123456) and demo API key (dxt_live_demo1234567890abcdef)');
   }
+
+  // Guarantee that owner accounts (e.g. zamir.0huo@gmail.com, admin@dxgen.ai) have 'owner' role
+  try {
+    sqliteDb.prepare(`
+      UPDATE users SET role = 'owner' WHERE LOWER(email) IN ('admin@dxgen.ai', 'zamir.0huo@gmail.com')
+    `).run();
+  } catch (err) {
+    console.error('[Database] Failed to ensure owner role:', err);
+  }
 }
 
 export const db = {
