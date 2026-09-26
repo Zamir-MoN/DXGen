@@ -17,7 +17,7 @@ export const STYLE_MODIFIERS: Record<string, string> = {
   'Artistic': 'artistic expression, creative brushwork, emotional color resonance, fine art concept, expressive lighting'
 };
 
-export const DEFAULT_NEGATIVE_PROMPT = 'blurry, low quality, distorted, deformed, duplicate objects, bad anatomy, watermark, unwanted text, logo, artifact, oversaturated, pixelated';
+export const DEFAULT_NEGATIVE_PROMPT = 'text, typography, words, letters, font, watermark, logo, label, signature, headline, subtitle, writing, caption, signage, banner text, blurry, low quality, distorted, deformed, duplicate objects, bad anatomy, artifact, oversaturated, pixelated';
 
 export interface BuildImagePromptParams {
   topic: string;
@@ -29,12 +29,60 @@ export interface BuildImagePromptParams {
 
 export class ImagePromptBuilder {
   /**
+   * Sanitizes a topic or prompt to strip editorial headlines, title prefixes, quotes, and typography triggers
+   */
+  static sanitizeVisualSubject(rawText: string): string {
+    return (rawText || '')
+      .replace(/["'“”‘’«»()[\]{}:;!?]/g, ' ')
+      .replace(/\b(?:\d+|top\s+\d+|best\s+\d+)\s+(?:ways|tips|strategies|steps|rules|secrets|methods|practices)\s+(?:to|for)?\b/gi, '')
+      .replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to|a\s+complete\s+guide\s+to|a\s+guide\s+to|guide\s+to)\b/gi, '')
+      .replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use|master|scale|optimize))\b/gi, '')
+      .replace(/\b(?:understanding|exploring|discovering|navigating|mastering|unveiling|demystifying|optimizing|enhancing|transforming|introducing|unlocking|revolutionizing)\b/gi, '')
+      .replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and care')
+      .replace(/\b(?:permanently|fast|easily|effectively|in\s+2025|in\s+2026|today|now)\b/gi, '')
+      .replace(/\b(?:restoring|improving|maximizing|boosting)\b/gi, '')
+      .replace(/\b(?:poster|flyer|magazine\s+cover|book\s+cover|infographic|banner\s+ad|headline)\b/gi, 'photograph')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Enforces zero-text directives on any image prompt so AI never renders text overlays or typography
+   */
+  static enforceNoText(prompt: string): string {
+    if (!prompt) return 'clean photorealistic scene, textless, no text, no words, no typography, no watermark';
+    let p = prompt.replace(/["'“”‘’«»]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const lower = p.toLowerCase();
+    const parts: string[] = [];
+    if (!lower.includes('no text') && !lower.includes('textless')) {
+      parts.push('textless');
+      parts.push('no text');
+    }
+    if (!lower.includes('no watermark')) {
+      parts.push('no watermark');
+    }
+    if (!lower.includes('no words') && !lower.includes('no typography')) {
+      parts.push('no words');
+      parts.push('no typography');
+    }
+    if (!lower.includes('no logos') && !lower.includes('no logo')) {
+      parts.push('no logos');
+    }
+
+    if (parts.length > 0) {
+      p = `${p}, ${parts.join(', ')}`;
+    }
+    return p;
+  }
+
+  /**
    * Checks if a prompt is already a fully formed visual scene prompt created by the prompt builder
    */
   static isAlreadyEnhanced(prompt: string): boolean {
     if (!prompt) return false;
     const lower = prompt.toLowerCase();
-    const hasNegativeDirectives = lower.includes('no text') || lower.includes('no watermark');
+    const hasNegativeDirectives = lower.includes('no text') || lower.includes('no watermark') || lower.includes('textless');
     const hasStyleOrComposition =
       lower.includes('studio softbox lighting') ||
       lower.includes('realistic photography') ||
@@ -48,20 +96,21 @@ export class ImagePromptBuilder {
   }
 
   /**
-   * Builds an enhanced visual prompt incorporating style and composition
+   * Builds an enhanced visual prompt incorporating style, composition, and guaranteed textless output
    */
   static buildPrompt(params: BuildImagePromptParams): string {
     const rawTopic = (params.topic || '').trim();
 
     // If the topic is already an enhanced visual prompt, avoid recursive wrapping
     if (this.isAlreadyEnhanced(rawTopic)) {
-      return rawTopic;
+      return this.enforceNoText(rawTopic);
     }
 
     const parts: string[] = [];
 
-    // 1. Core subject
-    parts.push(rawTopic);
+    // 1. Core subject (sanitized of title/headline words and quotes)
+    const cleanedSubject = this.sanitizeVisualSubject(rawTopic);
+    parts.push(cleanedSubject || rawTopic);
 
     // 2. Style enhancement
     const selectedStyle = params.style || 'Realistic';
@@ -87,8 +136,8 @@ export class ImagePromptBuilder {
       parts.push(params.customDirectives.trim());
     }
 
-    // 5. Negative prompt instructions embedded into prompt text for models without separate negative input
-    parts.push('no text, no watermark, no logos, clean photographic composition');
+    // 5. Strict negative text instructions embedded into prompt text for all models
+    parts.push('textless, no text, no watermark, no logos, no typography, no words, clean photographic composition');
 
     return parts.join(', ');
   }
@@ -134,7 +183,7 @@ export class ImagePromptBuilder {
 
 export class ContentImagePromptBuilder {
   /**
-   * Generates a visual image prompt from generated blog or post content
+   * Generates a visual image prompt from generated blog or post content with zero text in image
    */
   static buildPromptFromContent(params: {
     title?: string;
@@ -148,17 +197,11 @@ export class ContentImagePromptBuilder {
     const aspectRatio = ImagePromptBuilder.getPlatformAspectRatio(platform);
     const style = (params.style as string) || (platform === 'website' ? 'Commercial Photography' : 'Realistic');
 
-    // Extract core visual theme without editorial headline noise
-    let subject = (params.title || params.topic)
-      .replace(/[^\w\s-]/g, ' ')
-      .replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to)\b/gi, '')
-      .replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use))\b/gi, '')
-      .replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and care')
-      .replace(/\b(?:permanently|fast|easily|effectively|in\s+2026)\b/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (!subject) subject = params.topic.trim();
+    // Extract core visual theme without editorial headline noise or title phrases
+    let subject = ImagePromptBuilder.sanitizeVisualSubject(params.title || params.topic);
+    if (!subject || subject.length < 3) {
+      subject = params.topic.trim();
+    }
 
     let visualConcept = `Aesthetic visual of ${subject}`;
 
@@ -177,7 +220,7 @@ export class ContentImagePromptBuilder {
       style,
       platform,
       aspectRatio,
-      customDirectives: 'depth of field, photorealistic, 8k uhd'
+      customDirectives: 'depth of field, photorealistic, 8k uhd, textless, no text'
     });
 
     return {

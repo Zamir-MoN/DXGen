@@ -50,7 +50,7 @@ const PROMPT_SUGGESTIONS = [
   'Futuristic electric vehicle charging in a high-tech smart city',
   'Artisan barista pouring espresso latte art in a sunlit industrial cafe',
   'Editorial portrait of a confident tech founder in a sleek glass office',
-  'Cyberpunk aerial cityscape at dusk with holographic billboards'
+  'Cyberpunk aerial cityscape at dusk with vibrant neon architecture, textless'
 ];
 
 export const ImagesPage: React.FC = () => {
@@ -61,7 +61,7 @@ export const ImagesPage: React.FC = () => {
   const [model, setModel] = useState('flux-schnell');
   const [style, setStyle] = useState('Commercial Photography');
   const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [negativePrompt, setNegativePrompt] = useState('');
+  const [negativePrompt, setNegativePrompt] = useState('text, typography, words, letters, watermark, labels, headline, logos');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Action & State
@@ -362,7 +362,7 @@ export const ImagesPage: React.FC = () => {
                 <textarea
                   value={negativePrompt}
                   onChange={(e) => setNegativePrompt(e.target.value)}
-                  placeholder="e.g. blurry, text, distorted anatomy, logos, watermark"
+                  placeholder="e.g. text, typography, words, letters, blurry, distorted anatomy, logos, watermark"
                   rows={2}
                   className="w-full bg-[#0f172a] border border-[#1e293b] rounded p-2 text-xs text-white outline-none"
                 />

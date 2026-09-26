@@ -196,23 +196,27 @@ export const GeneratorPage: React.FC = () => {
       setFeaturedImage(null);
       setImageError(null);
 
-      // Auto-craft clean, concise visual prompt optimized for FLUX Schnell
+      // Auto-craft clean, concise visual prompt optimized for FLUX Schnell with zero text in image
       let cleanSubject = (res.data.content.title || topic)
-        .replace(/[^\w\s-]/g, ' ')
-        .replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to)\b/gi, '')
-        .replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use))\b/gi, '')
-        .replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and wellness')
-        .replace(/\b(?:permanently|fast|easily|effectively|in\s+2026)\b/gi, '')
+        .replace(/["'“”‘’«»()[\]{}:;!?]/g, ' ')
+        .replace(/\b(?:\d+|top\s+\d+|best\s+\d+)\s+(?:ways|tips|strategies|steps|rules|secrets|methods|practices)\s+(?:to|for)?\b/gi, '')
+        .replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to|a\s+complete\s+guide\s+to|a\s+guide\s+to|guide\s+to)\b/gi, '')
+        .replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use|master|scale|optimize))\b/gi, '')
+        .replace(/\b(?:understanding|exploring|discovering|navigating|mastering|unveiling|demystifying|optimizing|enhancing|transforming|introducing|unlocking|revolutionizing)\b/gi, '')
+        .replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and care')
+        .replace(/\b(?:permanently|fast|easily|effectively|in\s+2025|in\s+2026|today|now)\b/gi, '')
+        .replace(/\b(?:restoring|improving|maximizing|boosting)\b/gi, '')
+        .replace(/\b(?:poster|flyer|magazine\s+cover|book\s+cover|infographic|banner\s+ad|headline)\b/gi, 'photograph')
         .replace(/\s+/g, ' ')
         .trim();
 
       if (!cleanSubject) cleanSubject = topic.trim();
 
       const defaultVisualPrompt = platform === 'website'
-        ? `Aesthetic hero visual of ${cleanSubject}, clean modern composition, natural studio lighting, photorealistic, 8k uhd`
+        ? `Aesthetic hero visual of ${cleanSubject}, clean modern composition, natural studio lighting, photorealistic, 8k uhd, textless, no text`
         : platform === 'instagram'
-        ? `Vibrant lifestyle visual of ${cleanSubject}, high contrast, aesthetic lighting, premium modern vibe`
-        : `Executive commercial visual of ${cleanSubject}, modern professional setting, clean composition, studio softbox lighting`;
+        ? `Vibrant lifestyle visual of ${cleanSubject}, high contrast, aesthetic lighting, premium modern vibe, textless, no text`
+        : `Executive commercial visual of ${cleanSubject}, modern professional setting, clean composition, studio softbox lighting, textless, no text`;
 
       setEditableImagePrompt(defaultVisualPrompt);
       setShowImagePromptEditor(true);
@@ -262,6 +266,7 @@ export const GeneratorPage: React.FC = () => {
         model: 'flux-schnell',
         style: imageStyle,
         aspectRatio: imageAspectRatio,
+        negativePrompt: 'text, typography, words, letters, font, watermark, logo, label, signature, headline, writing',
         metadata: {
           contentId: generatedResult?.contentId,
           topic: topic || generatedResult?.content?.title

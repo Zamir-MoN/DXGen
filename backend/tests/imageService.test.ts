@@ -82,6 +82,22 @@ describe('AI Image Generation Service Suite', () => {
       expect(ImagePromptBuilder.getDimensionsForAspectRatio('4:5')).toEqual({ width: 896, height: 1120 });
       expect(ImagePromptBuilder.getDimensionsForAspectRatio('9:16')).toEqual({ width: 720, height: 1280 });
     });
+
+    it('should sanitize editorial title words and enforce zero-text directives', () => {
+      const sanitized = ImagePromptBuilder.sanitizeVisualSubject(
+        'Understanding Prosthodontics: Restoring Smiles and Oral Function'
+      );
+      expect(sanitized).not.toContain('Understanding');
+      expect(sanitized).not.toContain('Restoring');
+      expect(sanitized).not.toContain(':');
+      expect(sanitized).toContain('Prosthodontics');
+
+      const enforced = ImagePromptBuilder.enforceNoText('A modern dental clinic with teeth models');
+      expect(enforced).toContain('textless');
+      expect(enforced).toContain('no text');
+      expect(enforced).toContain('no typography');
+      expect(enforced).toContain('no words');
+    });
   });
 
   describe('ContentImagePromptBuilder', () => {

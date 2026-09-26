@@ -77,7 +77,18 @@ export class ImageService {
       });
     }
 
-    const negativePrompt = options.negativePrompt?.trim() || DEFAULT_NEGATIVE_PROMPT;
+    // Always strictly enforce zero-text output rules on the prompt
+    enhancedPrompt = ImagePromptBuilder.enforceNoText(enhancedPrompt);
+
+    // Always ensure negative prompt strictly bans text, typography, fonts, watermarks, writing
+    let negativePrompt = options.negativePrompt?.trim() || DEFAULT_NEGATIVE_PROMPT;
+    const requiredNegatives = ['text', 'words', 'typography', 'letters', 'watermark', 'signature', 'logo', 'labels', 'writing'];
+    const lowerNeg = negativePrompt.toLowerCase();
+    const missingNegatives = requiredNegatives.filter(term => !lowerNeg.includes(term));
+    if (missingNegatives.length > 0) {
+      negativePrompt = `${missingNegatives.join(', ')}, ${negativePrompt}`;
+    }
+
     const model = options.model || config.image.defaultModel;
 
     const normalizedOptions: ImageGenerationOptions = {

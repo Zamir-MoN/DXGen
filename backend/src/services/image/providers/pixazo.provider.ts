@@ -93,10 +93,14 @@ export class PixazoProvider implements ImageProvider {
     const isFlux = model.toLowerCase().includes('flux');
     let effectivePrompt = isFlux 
       ? this.sanitizePromptForFlux(options.prompt)
-      : options.prompt.trim().replace(/\s*,\s*,+/g, ',').replace(/\s+/g, ' ').trim();
+      : options.prompt.trim().replace(/["'“”‘’«»]/g, ' ').replace(/\s*,\s*,+/g, ',').replace(/\s+/g, ' ').trim();
+
+    if (!isFlux && !effectivePrompt.toLowerCase().includes('no text')) {
+      effectivePrompt += ', textless, no text, no words, no typography, no watermark';
+    }
 
     // FLUX Schnell strictly accepts { prompt: string }.
-    // Do NOT append negative prompts or ", without: ..." into FLUX prompt as it confuses the T5 encoder.
+    // With T5-XXL, concrete textless tokens prevent in-image text rendering.
     const payload: Record<string, any> = {
       prompt: effectivePrompt
     };
@@ -166,33 +170,37 @@ export class PixazoProvider implements ImageProvider {
   }
 
   /**
-   * Sanitizes and strips meta boilerplate from prompt to ensure fast FLUX generation (<40s)
+   * Sanitizes prompt and enforces strict zero-text visual directives for FLUX Schnell
    */
   private sanitizePromptForFlux(rawPrompt: string): string {
     let p = rawPrompt.trim();
 
-    // 1. Remove meta editorial framing prefixes
+    // 1. Strip quotation marks which trigger FLUX in-image text typography synthesis
+    p = p.replace(/["'“”‘’«»]/g, ' ');
+
+    // 2. Remove meta editorial framing prefixes
     p = p.replace(/(?:create\s+a\s+|generate\s+a\s+)?(?:professional|executive|striking|eye-catching|modern)?\s*(?:editorial|lifestyle|commercial|business)?\s*(?:hero\s+image|visual\s+scene|visual|scene|concept|image)\s*(?:representing|of|depicting|showing|for)?\s*/gi, '');
 
-    // 2. Remove meta suffix phrases
+    // 3. Remove meta suffix phrases (without stripping no-text/textless directives!)
     p = p.replace(/,\s*suitable\s+for\s+(?:a\s+)?(?:business\s+blog|website|social\s+media)?\s*(?:hero\s+image|banner|post)?/gi, '');
     p = p.replace(/,\s*wide\s+banner\s+composition/gi, '');
-    p = p.replace(/,\s*no\s+(?:text|watermark|logos?|typography|words?|letters?|overlays?)(?:\s+in\s+image)?/gi, '');
 
-    // 3. Remove article headline noise words
-    p = p.replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to)\b/gi, '');
-    p = p.replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome))\b/gi, 'treatment and care for');
+    // 4. Remove article headline noise and abstract meta words
+    p = p.replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to|a\s+complete\s+guide\s+to|a\s+guide\s+to|guide\s+to)\b/gi, '');
+    p = p.replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use|master|scale|optimize))\b/gi, 'treatment and care for');
     p = p.replace(/\b(?:how\s+to\s+(?:build|start|grow|launch|scale))\b/gi, 'building and scaling');
     p = p.replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and wellness');
-    p = p.replace(/\b(?:permanently|instantly|easily|effectively)\b/gi, '');
+    p = p.replace(/\b(?:understanding|restoring|mastering|exploring|unveiling|navigating|demystifying|optimizing|enhancing|transforming|introducing|unlocking)\b/gi, '');
+    p = p.replace(/\b(?:permanently|instantly|easily|effectively|in\s+2025|in\s+2026)\b/gi, '');
 
-    // 4. Clean punctuation and whitespace
-    p = p.replace(/\s*,\s*,+/g, ', ')
+    // 5. Clean punctuation and whitespace
+    p = p.replace(/[:;]/g, ', ')
+         .replace(/\s*,\s*,+/g, ', ')
          .replace(/^[\s,]+|[\s,]+$/g, '')
          .replace(/\s+/g, ' ')
          .trim();
 
-    // 5. Ensure high-fidelity photographic terms if missing
+    // 6. Ensure high-fidelity photographic terms if missing
     const lower = p.toLowerCase();
     if (!lower.includes('studio') && !lower.includes('lighting')) {
       p += ', studio softbox lighting';
@@ -204,8 +212,18 @@ export class PixazoProvider implements ImageProvider {
       p += ', sharp focus 8k uhd';
     }
 
-    if (p.length > 280) {
-      p = p.slice(0, 280).replace(/,[^,]*$/, '');
+    // 7. Strictly enforce textless / zero-text guarantee for FLUX
+    const noTextDirective = ', textless, no text, no words, no typography, no letters, no watermark, no labels';
+    if (!p.toLowerCase().includes('no text') && !p.toLowerCase().includes('textless')) {
+      p += noTextDirective;
+    } else if (!p.toLowerCase().includes('no words') || !p.toLowerCase().includes('no typography')) {
+      p += ', no words, no typography, no labels';
+    }
+
+    if (p.length > 320) {
+      const parts = p.split(',').map(s => s.trim()).filter(Boolean);
+      // Keep subject & lighting tokens and ensure textless directive is appended
+      p = parts.slice(0, 4).join(', ') + noTextDirective;
     }
 
     return p;
