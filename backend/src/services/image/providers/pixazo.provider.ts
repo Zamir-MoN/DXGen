@@ -28,7 +28,8 @@ export class PixazoProvider implements ImageProvider {
   constructor() {
     this.apiKey = config.image.pixazo.apiKey;
     this.baseUrl = config.image.pixazo.baseUrl;
-    this.timeoutMs = config.image.timeoutMs || 60000;
+    // Enforce safe minimum timeout of 150s so cloud GPU queues do not abort early
+    this.timeoutMs = Math.max(config.image.timeoutMs || 150000, 150000);
     this.maxRetries = config.image.maxRetries || 2;
   }
 
@@ -89,14 +90,14 @@ export class PixazoProvider implements ImageProvider {
     }
 
     // Build the payload supported by Pixazo
-    // Note: FLUX Schnell gateway strictly accepts { prompt: string }. Sending negative_prompt causes gateway hangs.
     const isFlux = model.toLowerCase().includes('flux');
-    let effectivePrompt = options.prompt.trim();
+    let effectivePrompt = options.prompt.trim()
+      .replace(/\s*,\s*,+/g, ',')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    if (isFlux && options.negativePrompt && options.negativePrompt.trim()) {
-      effectivePrompt += `, without: ${options.negativePrompt.trim()}`;
-    }
-
+    // FLUX Schnell strictly accepts { prompt: string }.
+    // Do NOT append negative prompts or ", without: ..." into FLUX prompt as it confuses the T5 encoder.
     const payload: Record<string, any> = {
       prompt: effectivePrompt
     };
@@ -249,7 +250,7 @@ export class PixazoProvider implements ImageProvider {
       clearTimeout(timer);
       if (err.name === 'AbortError' || err.code === 20) {
         throw new PixazoError(
-          `Image generation timed out after ${this.timeoutMs / 1000} seconds.`,
+          `Image generation timed out after ${Math.round(this.timeoutMs / 1000)} seconds. The Pixazo cloud GPU cluster is busy. Please click Retry.`,
           'IMAGE_TIMEOUT',
           504
         );

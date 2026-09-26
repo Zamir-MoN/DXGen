@@ -235,9 +235,10 @@ export const GeneratorPage: React.FC = () => {
 
     const stages = [
       { pct: 30, text: 'Connecting to Pixazo FLUX gateway...' },
-      { pct: 55, text: 'Synthesizing visual geometry & diffusion steps...' },
-      { pct: 78, text: 'Refining photorealistic textures & lighting...' },
-      { pct: 92, text: 'Finalizing Cloudflare CDN asset delivery...' }
+      { pct: 50, text: 'Synthesizing visual geometry & diffusion steps...' },
+      { pct: 72, text: 'Refining photorealistic textures & lighting...' },
+      { pct: 88, text: 'Finalizing Cloudflare CDN asset delivery...' },
+      { pct: 95, text: 'Verifying image resolution & metadata...' }
     ];
 
     let sIdx = 0;
@@ -247,7 +248,7 @@ export const GeneratorPage: React.FC = () => {
         setImageStage(stages[sIdx].text);
         sIdx++;
       }
-    }, 4500);
+    }, 5000);
 
     try {
       const res = await api.post('/images/generate', {
@@ -259,7 +260,7 @@ export const GeneratorPage: React.FC = () => {
           contentId: generatedResult?.contentId,
           topic: topic || generatedResult?.content?.title
         }
-      }, { timeout: 120000 });
+      }, { timeout: 180000 });
 
       clearInterval(interval);
       setImageProgress(100);
@@ -271,7 +272,8 @@ export const GeneratorPage: React.FC = () => {
       }
     } catch (err: any) {
       clearInterval(interval);
-      setImageError(err.message || 'Image generation failed. Please try again.');
+      const serverMsg = err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Image generation failed. Please try again.';
+      setImageError(serverMsg);
     } finally {
       setGeneratingImage(false);
     }

@@ -67,9 +67,9 @@ export class ImageService {
     width = sanitizeDimension(width, config.image.defaultWidth);
     height = sanitizeDimension(height, config.image.defaultHeight);
 
-    // 2. Build and enhance the prompt
+    // 2. Build and enhance the prompt (avoid duplicate enhancement if already a full scene prompt)
     let enhancedPrompt = options.prompt.trim();
-    if (options.style) {
+    if (options.style && !ImagePromptBuilder.isAlreadyEnhanced(options.prompt)) {
       enhancedPrompt = ImagePromptBuilder.buildPrompt({
         topic: options.prompt,
         style: options.style,

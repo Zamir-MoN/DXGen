@@ -29,13 +29,39 @@ export interface BuildImagePromptParams {
 
 export class ImagePromptBuilder {
   /**
+   * Checks if a prompt is already a fully formed visual scene prompt created by the prompt builder
+   */
+  static isAlreadyEnhanced(prompt: string): boolean {
+    if (!prompt) return false;
+    const lower = prompt.toLowerCase();
+    const hasNegativeDirectives = lower.includes('no text') || lower.includes('no watermark');
+    const hasStyleOrComposition =
+      lower.includes('studio softbox lighting') ||
+      lower.includes('realistic photography') ||
+      lower.includes('clean photographic composition') ||
+      lower.includes('clean composition') ||
+      lower.includes('octane 3d render') ||
+      lower.includes('editorial magazine quality') ||
+      lower.includes('high dynamic range');
+
+    return hasNegativeDirectives && hasStyleOrComposition;
+  }
+
+  /**
    * Builds an enhanced visual prompt incorporating style and composition
    */
   static buildPrompt(params: BuildImagePromptParams): string {
+    const rawTopic = (params.topic || '').trim();
+
+    // If the topic is already an enhanced visual prompt, avoid recursive wrapping
+    if (this.isAlreadyEnhanced(rawTopic)) {
+      return rawTopic;
+    }
+
     const parts: string[] = [];
 
     // 1. Core subject
-    parts.push(params.topic.trim());
+    parts.push(rawTopic);
 
     // 2. Style enhancement
     const selectedStyle = params.style || 'Realistic';
