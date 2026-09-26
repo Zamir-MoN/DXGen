@@ -284,6 +284,91 @@ GET /api/v1/health
 
 ---
 
+### 9. AI Image Generation (Pixazo)
+
+```http
+POST /api/v1/images/generate
+```
+
+Generates high-resolution images powered by Pixazo (FLUX Schnell / SDXL) with platform-specific aspect ratios, artistic styles, and injection filtering.
+
+#### Request Headers
+
+| Header | Type | Description |
+| :--- | :--- | :--- |
+| `Authorization` | `string` | `Bearer <API_KEY>` or `x-api-key` header |
+| `Content-Type` | `string` | `application/json` |
+
+#### Request Body Schema
+
+```json
+{
+  "prompt": "Modern premium workspace with a laptop, dark theme, professional technology company aesthetic",
+  "model": "flux-schnell",
+  "width": 1024,
+  "height": 1024,
+  "style": "Commercial Photography",
+  "aspectRatio": "1:1",
+  "negativePrompt": "blurry, low quality, distorted, watermark"
+}
+```
+
+#### Successful Response (`200 OK`)
+
+```json
+{
+  "success": true,
+  "requestId": "req_8df83910c2a1",
+  "image": {
+    "id": "img_72948201a0bc",
+    "url": "https://pub-582b7213209642b9b995c96c95a30381.r2.dev/flux-schnell-cf/prompt-1790416688074-45041.png",
+    "width": 1024,
+    "height": 1024,
+    "model": "flux-schnell",
+    "provider": "pixazo",
+    "prompt": "Modern premium workspace with a laptop, dark theme, professional technology company aesthetic",
+    "style": "Commercial Photography",
+    "aspectRatio": "1:1"
+  },
+  "usage": {
+    "provider": "pixazo",
+    "generationTimeMs": 1420
+  }
+}
+```
+
+---
+
+### 10. Generate Image From Generated Content
+
+```http
+POST /api/v1/images/from-content
+```
+
+Automatically generates a platform-aware featured or hero image based on an existing content generation asset.
+
+#### Request Body Schema
+
+```json
+{
+  "contentId": "cnt_91823749a0b1",
+  "style": "Commercial Photography"
+}
+```
+
+---
+
+### 11. Image Models & Styles Discovery
+
+```http
+GET /api/v1/images/models
+GET /api/v1/images/styles
+```
+
+Returns supported models, aspect ratios, and visual styles.
+
+---
+
 ## Standard Error Codes
 
 All errors return a consistent JSON payload:

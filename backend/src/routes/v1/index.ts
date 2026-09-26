@@ -7,10 +7,12 @@ import authRoutes from './authRoutes.js';
 import profileRoutes from './profileRoutes.js';
 import metadataRoutes from './metadataRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import imageRoutes from '../../services/image/image.routes.js';
 
 const router = Router();
 
 router.use('/generate', generateRoutes);
+router.use('/images', imageRoutes);
 router.use('/content', contentRoutes);
 router.use('/api-keys', apiKeyRoutes);
 router.use('/usage', usageRoutes);

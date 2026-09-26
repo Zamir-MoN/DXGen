@@ -17,5 +17,6 @@ router.patch('/api-keys/:id', validateRequest(updateApiKeySchema), AdminControll
 router.delete('/api-keys/:id', AdminController.deleteApiKey);
 router.get('/requests', AdminController.getRequests);
 router.get('/gemini-status', AdminController.getGeminiStatus);
+router.get('/image-status', AdminController.getImageStatus);
 
 export default router;

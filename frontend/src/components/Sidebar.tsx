@@ -9,6 +9,7 @@ import {
   Building2,
   FileCode2,
   ShieldCheck,
+  Image as ImageIcon,
   LogOut,
   X
 } from 'lucide-react';
@@ -24,11 +25,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
 
   // Admin sees full platform management suite.
-  // Normal users ONLY access the AI Content Generation features (Generate & History).
+  // Normal users access AI Content Generation and AI Images.
   const navItems = isAdmin
     ? [
         { to: '/', label: 'Dashboard', icon: LayoutDashboard },
         { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
+        { to: '/images', label: 'AI Images', icon: ImageIcon, badge: 'Pixazo' },
         { to: '/history', label: 'Content History', icon: History },
         { to: '/api-keys', label: 'API Keys', icon: KeyRound },
         { to: '/usage', label: 'Usage & Analytics', icon: BarChart3 },
@@ -38,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
       ]
     : [
         { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
+        { to: '/images', label: 'AI Images', icon: ImageIcon, badge: 'Pixazo' },
         { to: '/history', label: 'Content History', icon: History },
       ];
 

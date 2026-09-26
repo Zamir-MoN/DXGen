@@ -6,11 +6,13 @@ DXGen is a modern, enterprise-grade AI content generation platform and developer
 
 ## 🌟 Key Highlights
 
-* **Decoupled Architecture**: The core AI generation engine is entirely independent from the frontend UI. Both the Web Dashboard and external API clients execute the exact same battle-tested backend services.
+* **Decoupled Architecture**: The core AI text generation engine (Gemini) and AI image generation engine (Pixazo) operate independently through modular service abstractions.
+* **Modular Image Generation Service**: Provider-agnostic interface (`ImageProvider`) backing Pixazo (`FLUX.1 Schnell` / `SDXL`) with zero frontend coupling, automatic exponential retry, and 60-second abort timeouts.
+* **Content-to-Image Pipeline**: Automatically transforms generated blogs and social posts into visual scene prompts (`ContentImagePromptBuilder`) with platform-specific aspect ratios (16:9 for blogs, 1:1/4:5 for Instagram).
 * **Modular PromptBuilder**: Transforms raw user topics into structured, injection-resistant prompts containing platform rules, tone modifiers, SEO criteria, and business profile context.
 * **Configurable Gemini AI Integration**: Native integration with Google Gemini (`@google/generative-ai`), with model selection configurable via environment variables (`gemini-1.5-flash`, `gemini-2.5-flash`, `gemini-1.5-pro`) and automatic exponential backoff retries.
-* **Developer REST API**: Full-featured API with `dxt_live_` and `dxt_test_` key prefixes, SHA-256 cryptographic hashing, hourly/daily quota enforcement, and live request logging.
-* **Dark Modern SaaS UI**: Built with React, Vite, TypeScript, Tailwind CSS, Lucide Icons, and subtle GSAP micro-animations that strictly respect `prefers-reduced-motion`.
+* **Developer REST API**: Full-featured API for text (`/api/v1/generate`) and images (`/api/v1/images/generate`), with `dxt_live_` and `dxt_test_` key prefixes, SHA-256 cryptographic hashing, separate image rate limits, and live telemetry logging.
+* **Dark Modern SaaS UI & Image Studio**: Built with React, Vite, TypeScript, Tailwind CSS, Lucide Icons, and subtle GSAP micro-animations featuring a dedicated AI Image Studio with responsive gallery and instant downloads.
 * **Zero-Config Database**: Seamlessly runs with built-in high-concurrency SQLite (WAL mode) out-of-the-box or connects to PostgreSQL for enterprise containerized deployments.
 * **VPS & Docker Ready**: Complete deployment support including PM2 cluster configurations, Nginx reverse proxy with gzip compression and SSL termination, and Docker Compose.
 
@@ -19,45 +21,26 @@ DXGen is a modern, enterprise-grade AI content generation platform and developer
 ## 🏗️ System Architecture
 
 ```text
-               +----------------------------------------+
-               |        Public Internet / Clients       |
-               +----------------------------------------+
-                     | (HTTPS :443 / HTTP :80)
-                     v
-               +----------------------------------------+
-               |        Nginx Reverse Proxy Gateway     |
-               +----------------------------------------+
-                /                                      \
-       (Static Assets)                              (API Proxy)
-              /                                          \
-             v                                            v
-+------------------------+                   +------------------------+
-|  React 18 + Vite SPA   |                   |  Node.js Express API   |
-|   (Dark SaaS UI)       |                   |  (Configurable PORT)   |
-+------------------------+                   +------------------------+
-                                                          |
-                      +-----------------------------------+-----------------------------------+
-                      |                                   |                                   |
-                      v                                   v                                   v
-          +-----------------------+           +-----------------------+           +-----------------------+
-          |     PromptBuilder     |           |     ApiKeyService     |           |  Database Layer (DB)  |
-          |  PlatformRules        |           |  SHA-256 Hash Vault   |           |  SQLite (WAL) or      |
-          |  ContentTypeRules     |           |  Rate Limiter Engine  |           |  PostgreSQL 16        |
-          |  Tone & SEO Rules     |           |  Request Logger       |           +-----------------------+
-          +-----------------------+           +-----------------------+
-                      |
-                      v
-          +-----------------------+
-          |     GeminiService     |
-          |  Google Gemini API    |
-          |  Exponential Backoff  |
-          +-----------------------+
-                      |
-                      v
-          +-----------------------+
-          |  ResponseParser &     |
-          |  ContentFormatter     |
-          +-----------------------+
+                               AI CONTENT PLATFORM (DXGen)
+                                            │
+                     ┌──────────────────────┴──────────────────────┐
+                     │                                             │
+                     ▼                                             ▼
+              Content Service                                Image Service
+                     │                                             │
+                     ▼                                             ▼
+               PromptBuilder                              ImagePromptBuilder
+                     │                                             │
+                     ▼                                             ▼
+             Google Gemini API                              Provider Layer
+             (Text Generation)                                     │
+                                                                   ▼
+                                                            Pixazo Provider
+                                                    (FLUX.1 Schnell / SDXL Gateway)
+                                                                   │
+                                                                   ▼
+                                                        Durable Image Storage
+                                                        (R2 CDN / Local VPS)
 ```
 
 ---
@@ -93,10 +76,21 @@ Copy `.env.example` to `.env` in the root and configure your credentials:
 cp .env.example .env
 ```
 
-Set your Google Gemini API Key:
+Set your API Keys:
 ```env
+# Google Gemini (Text Generation)
 GEMINI_API_KEY=your_actual_gemini_api_key_here
 GEMINI_MODEL=gemini-1.5-flash
+
+# Pixazo AI (Image Generation)
+IMAGE_PROVIDER=pixazo
+PIXAZO_API_KEY=your_pixazo_api_key_here
+PIXAZO_BASE_URL=https://gateway.pixazo.ai
+IMAGE_DEFAULT_MODEL=flux-schnell
+IMAGE_REQUEST_TIMEOUT=60000
+IMAGE_RATE_LIMIT_PER_MINUTE=5
+IMAGE_RATE_LIMIT_PER_DAY=20
+
 PORT=3001
 ```
 
@@ -202,7 +196,21 @@ curl -X POST http://localhost:3001/api/v1/generate \
   }'
 ```
 
-Refer to [API.md](./API.md) for full interactive endpoint specifications.
+### Generate AI Image (Pixazo FLUX Schnell)
+
+```bash
+curl -X POST http://localhost:3001/api/v1/images/generate \
+  -H "Authorization: Bearer dxt_live_demo1234567890abcdef" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Modern SaaS analytics dashboard on glass display, dark ambient studio",
+    "model": "flux-schnell",
+    "style": "Commercial Photography",
+    "aspectRatio": "16:9"
+  }'
+```
+
+Refer to [API.md](./API.md) and [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) for full interactive endpoint specifications and code snippets (JS, Python, PHP, cURL).
 
 ---
 

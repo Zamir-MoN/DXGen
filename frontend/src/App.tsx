@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.js';
 import { AppLayout } from './layouts/AppLayout.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { GeneratorPage } from './pages/GeneratorPage.js';
+import { ImagesPage } from './pages/ImagesPage.js';
 import { HistoryPage } from './pages/HistoryPage.js';
 import { ApiKeysPage } from './pages/ApiKeysPage.js';
 import { UsagePage } from './pages/UsagePage.js';
@@ -66,8 +67,9 @@ export const App: React.FC = () => {
             {/* Root index: Admin sees DashboardPage, Normal user redirects to /generate */}
             <Route index element={<RootIndexRoute />} />
             
-            {/* Core user routes: AI Content Studio */}
+            {/* Core user routes: AI Content Studio & AI Image Studio */}
             <Route path="generate" element={<GeneratorPage />} />
+            <Route path="images" element={<ImagesPage />} />
             <Route path="history" element={<HistoryPage />} />
 
             {/* Admin-only routes */}

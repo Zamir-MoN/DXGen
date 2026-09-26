@@ -18,7 +18,8 @@ import {
   ExternalLink,
   Clock,
   Layers,
-  Check
+  Check,
+  Image as ImageIcon
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { animatePageIn } from '../animations/gsapTransitions.js';
@@ -29,18 +30,22 @@ export const AdminPage: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [geminiData, setGeminiData] = useState<any>(null);
+  const [imageStatus, setImageStatus] = useState<any>(null);
+  const [testingImage, setTestingImage] = useState(false);
+  const [imageTestResult, setImageTestResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [geminiPinging, setGeminiPinging] = useState(false);
-  const [activeTab, setActiveTab] = useState<'gemini' | 'users' | 'keys' | 'errors'>('gemini');
+  const [activeTab, setActiveTab] = useState<'gemini' | 'image' | 'users' | 'keys' | 'errors'>('gemini');
 
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [overRes, usersRes, keysRes, geminiRes] = await Promise.all([
+      const [overRes, usersRes, keysRes, geminiRes, imgRes] = await Promise.all([
         api.get('/admin/overview'),
         api.get('/admin/users'),
         api.get('/admin/api-keys'),
-        api.get('/admin/gemini-status').catch(() => null)
+        api.get('/admin/gemini-status').catch(() => null),
+        api.get('/admin/image-status').catch(() => null)
       ]);
       setOverview(overRes.data.overview);
       setUsers(usersRes.data.users);
@@ -48,10 +53,30 @@ export const AdminPage: React.FC = () => {
       if (geminiRes?.data?.gemini) {
         setGeminiData(geminiRes.data.gemini);
       }
+      if (imgRes?.data?.imageStatus) {
+        setImageStatus(imgRes.data.imageStatus);
+      }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestImageProvider = async () => {
+    setTestingImage(true);
+    setImageTestResult(null);
+    try {
+      const res = await api.post('/images/test');
+      setImageTestResult(res.data.test);
+      const statusRes = await api.get('/admin/image-status');
+      if (statusRes?.data?.imageStatus) {
+        setImageStatus(statusRes.data.imageStatus);
+      }
+    } catch (err: any) {
+      setImageTestResult({ ok: false, error: err.message, latencyMs: 0 });
+    } finally {
+      setTestingImage(false);
     }
   };
 
@@ -220,7 +245,7 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="saas-card p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Total Registered Users</span>
@@ -241,11 +266,20 @@ export const AdminPage: React.FC = () => {
 
         <div className="saas-card p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Global Generations</span>
+            <span className="text-xs font-medium">Text Generations</span>
             <FileText className="w-4 h-4 text-emerald-400" />
           </div>
           <p className="text-2xl font-bold text-white">{overview?.totalGenerations || 0}</p>
           <p className="text-[11px] text-slate-400">Articles & posts produced</p>
+        </div>
+
+        <div className="saas-card p-5 space-y-2">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-xs font-medium">AI Images Produced</span>
+            <ImageIcon className="w-4 h-4 text-pink-400" />
+          </div>
+          <p className="text-2xl font-bold text-white">{overview?.totalImages || 0}</p>
+          <p className="text-[11px] text-pink-400">Pixazo FLUX assets</p>
         </div>
 
         <div className="saas-card p-5 space-y-2">
@@ -261,7 +295,8 @@ export const AdminPage: React.FC = () => {
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-[#1e293b] pb-2">
         {[
-          { id: 'gemini', label: 'Gemini Quota & Credits', icon: Sparkles },
+          { id: 'gemini', label: 'Gemini Engine & Credits', icon: Sparkles },
+          { id: 'image', label: 'Image Provider (Pixazo)', icon: ImageIcon },
           { id: 'users', label: 'Users Directory', icon: Users },
           { id: 'keys', label: 'All API Keys', icon: KeyRound },
           { id: 'errors', label: 'Recent System Errors', icon: AlertTriangle }
@@ -438,6 +473,142 @@ export const AdminPage: React.FC = () => {
                 <span>Google AI Studio Plan & Billing</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Panel: Image Provider (Pixazo) */}
+      {activeTab === 'image' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Provider Configuration Card */}
+            <div className="saas-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-pink-400" />
+                  <span>Image Generation Provider</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-pink-500/10 text-pink-300 font-mono">
+                  {imageStatus?.provider?.toUpperCase() || 'PIXAZO'}
+                </span>
+              </div>
+
+              <div className="space-y-2 text-xs divide-y divide-[#1e293b]">
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-400">Provider Status</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>{imageStatus?.isConfigured ? 'Connected & Ready' : 'Unconfigured'}</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-400">Subscription Key</span>
+                  <span className="font-mono text-cyan-400 font-semibold px-2 py-0.5 rounded bg-[#090d16] border border-[#1e293b]">
+                    {imageStatus?.status || 'Configured'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-400">Default Model</span>
+                  <span className="font-mono text-white font-semibold">
+                    {imageStatus?.defaultModel || 'flux-schnell'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-400">Inference Architecture</span>
+                  <span className="font-mono text-slate-300">
+                    FLUX.1 Schnell Latent Diffusion
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Rate Limits & Quota Card */}
+            <div className="saas-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Gauge className="w-4 h-4 text-cyan-400" />
+                  <span>Image Rate Limits</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-semibold">
+                  SaaS Quota
+                </span>
+              </div>
+
+              <div className="space-y-2 text-xs divide-y divide-[#1e293b]">
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-400">Rate Limit Per Minute</span>
+                  <span className="font-mono text-white font-semibold">
+                    {imageStatus?.rateLimit?.perMinute || 5} req/min
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-400">Rate Limit Per Day</span>
+                  <span className="font-mono text-white font-semibold">
+                    {imageStatus?.rateLimit?.perDay || 20} req/day
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-400">Images Produced Today</span>
+                  <span className="font-mono text-pink-400 font-semibold">
+                    {imageStatus?.usage?.imagesGeneratedToday || 0} assets
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-slate-400">Images This Month</span>
+                  <span className="font-mono text-cyan-400 font-semibold">
+                    {imageStatus?.usage?.imagesGeneratedThisMonth || 0} assets
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Health & Diagnostic Probe */}
+            <div className="saas-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <span>Provider Diagnostics</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-semibold">
+                  Gateway
+                </span>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Verify end-to-end connectivity with Pixazo image gateway without revealing credentials to the browser.
+                </p>
+
+                <button
+                  onClick={handleTestImageProvider}
+                  disabled={testingImage}
+                  className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-pink-600 to-indigo-600 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:from-pink-500 hover:to-indigo-500 disabled:opacity-50 transition-all shadow-md shadow-pink-500/20"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${testingImage ? 'animate-spin' : ''}`} />
+                  <span>{testingImage ? 'Testing Pixazo Gateway...' : 'Test Image Provider'}</span>
+                </button>
+
+                {imageTestResult && (
+                  <div className={`p-2.5 rounded-lg border text-[11px] ${
+                    imageTestResult.ok
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-red-500/10 border-red-500/30 text-red-300'
+                  }`}>
+                    {imageTestResult.ok ? (
+                      <div className="flex items-center justify-between">
+                        <span>✓ Connected ({imageTestResult.model || 'FLUX.1 Schnell'})</span>
+                        <span className="font-mono font-bold">{imageTestResult.latencyMs}ms</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-semibold">Connection Test Failed:</p>
+                        <p className="text-[10px] mt-0.5 text-red-400">{imageTestResult.error}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

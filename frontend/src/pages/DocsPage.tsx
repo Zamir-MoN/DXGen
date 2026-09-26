@@ -8,13 +8,15 @@ import {
   Play,
   Shield,
   Clock,
-  Code2
+  Code2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { animatePageIn } from '../animations/gsapTransitions.js';
 
 export const DocsPage: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedApi, setSelectedApi] = useState<'text' | 'image'>('text');
   const [selectedLang, setSelectedLang] = useState<'curl' | 'js' | 'python' | 'php' | 'nodejs'>('curl');
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
 
@@ -39,6 +41,26 @@ export const DocsPage: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedTab(id);
     setTimeout(() => setCopiedTab(null), 2000);
+  };
+
+  const handleEndpointChange = (ep: string) => {
+    setTestEndpoint(ep);
+    if (ep.includes('/images')) {
+      setTestPayload(JSON.stringify({
+        prompt: "Modern minimalist tech workspace with dark mode desktop setup",
+        model: "flux-schnell",
+        style: "Commercial Photography",
+        aspectRatio: "16:9"
+      }, null, 2));
+    } else {
+      setTestPayload(JSON.stringify({
+        topic: "Best CRM for SaaS startups in 2026",
+        contentType: "seo_blog_article",
+        platform: "website",
+        tone: "professional",
+        length: "short"
+      }, null, 2));
+    }
   };
 
   const handleExecuteTest = async () => {
@@ -70,7 +92,7 @@ export const DocsPage: React.FC = () => {
     }
   };
 
-  const codeSnippets: Record<string, string> = {
+  const textSnippets: Record<string, string> = {
     curl: `curl -X POST https://yourdomain.com/api/v1/generate \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
@@ -168,8 +190,98 @@ echo $response;
 ?>`
   };
 
+  const imageSnippets: Record<string, string> = {
+    curl: `curl -X POST https://yourdomain.com/api/v1/images/generate \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "prompt": "Modern premium workspace with a laptop, dark theme, professional technology company aesthetic",
+    "model": "flux-schnell",
+    "style": "Commercial Photography",
+    "aspectRatio": "16:9"
+  }'`,
+
+    js: `const response = await fetch('https://yourdomain.com/api/v1/images/generate', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    prompt: 'Modern premium workspace with a laptop, dark theme, professional technology company aesthetic',
+    model: 'flux-schnell',
+    style: 'Commercial Photography',
+    aspectRatio: '16:9'
+  })
+});
+
+const data = await response.json();
+console.log('Image URL:', data.image.url);`,
+
+    nodejs: `import axios from 'axios';
+
+const { data } = await axios.post('https://yourdomain.com/api/v1/images/generate', {
+  prompt: 'Modern premium workspace with a laptop, dark theme, professional technology company aesthetic',
+  model: 'flux-schnell',
+  style: 'Commercial Photography',
+  aspectRatio: '16:9'
+}, {
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  }
+});
+
+console.log('Generated Image Asset:', data.image.url);`,
+
+    python: `import requests
+
+url = "https://yourdomain.com/api/v1/images/generate"
+headers = {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+payload = {
+    "prompt": "Modern premium workspace with a laptop, dark theme, professional technology company aesthetic",
+    "model": "flux-schnell",
+    "style": "Commercial Photography",
+    "aspectRatio": "16:9"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print("Generated Image URL:", data["image"]["url"])`,
+
+    php: `<?php
+$ch = curl_init('https://yourdomain.com/api/v1/images/generate');
+$payload = json_encode([
+    'prompt' => 'Modern premium workspace with a laptop, dark theme, professional technology company aesthetic',
+    'model' => 'flux-schnell',
+    'style' => 'Commercial Photography',
+    'aspectRatio' => '16:9'
+]);
+
+curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $payload,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER => [
+        'Authorization: Bearer YOUR_API_KEY',
+        'Content-Type: application/json'
+    ]
+]);
+
+$response = curl_exec($ch);
+curl_close($ch);
+$result = json_decode($response, true);
+echo $result['image']['url'];
+?>`
+  };
+
+  const activeSnippets = selectedApi === 'image' ? imageSnippets : textSnippets;
+
   return (
-    <div ref={containerRef} className="space-y-8 max-w-5xl mx-auto">
+    <div ref={containerRef} className="space-y-8 max-w-5xl mx-auto pb-12">
       {/* Header */}
       <div className="border-b border-[#1e293b] pb-5 space-y-2">
         <div className="flex items-center gap-2">
@@ -178,7 +290,7 @@ echo $response;
         </div>
         <h2 className="text-2xl font-bold text-white tracking-tight">DXGen Developer API</h2>
         <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
-          Integrate AI content generation into your CMS, marketing bots, mobile apps, or internal tools. The same robust generation engine that powers the dashboard is available programmatically.
+          Integrate AI text generation (powered by Google Gemini) and AI image generation (powered by Pixazo FLUX Schnell) into your CMS, bots, mobile apps, or internal tools with SHA-256 key authorization and rate limiting.
         </p>
       </div>
 
@@ -189,7 +301,7 @@ echo $response;
           <h3 className="text-base font-semibold text-white">Authentication</h3>
         </div>
         <p className="text-xs text-slate-400 leading-relaxed">
-          All requests to the DXGen Public API require a Bearer token in the <code className="text-cyan-400 font-mono">Authorization</code> HTTP header.
+          All requests to the DXGen Public API require a Bearer token in the <code className="text-cyan-400 font-mono">Authorization</code> HTTP header, or via <code className="text-cyan-400 font-mono">x-api-key</code>.
         </p>
         <div className="bg-[#090d16] p-3 rounded-lg border border-[#1e293b] font-mono text-xs text-cyan-300 flex items-center justify-between">
           <span>Authorization: Bearer dxt_live_xxxxxxxxxxxxxxxxxxxxxxxxx</span>
@@ -204,10 +316,27 @@ echo $response;
 
       {/* Code Examples Tabs */}
       <div className="saas-card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e293b] bg-[#090d16]/70">
-          <div className="flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-semibold text-white">Example Generation Request</span>
+        {/* API Switcher Header: Text vs Image */}
+        <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-[#1e293b] bg-[#090d16]/90 gap-3">
+          <div className="flex rounded-lg bg-[#0f172a] p-1 border border-[#1e293b] text-xs">
+            <button
+              onClick={() => setSelectedApi('text')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded font-semibold transition-colors ${
+                selectedApi === 'text' ? 'bg-brand-500 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Text & Blog API (Gemini)</span>
+            </button>
+            <button
+              onClick={() => setSelectedApi('image')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded font-semibold transition-colors ${
+                selectedApi === 'image' ? 'bg-brand-500 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Image API (Pixazo FLUX)</span>
+            </button>
           </div>
 
           <div className="flex rounded-lg bg-[#0f172a] p-1 border border-[#1e293b] text-xs font-mono">
@@ -227,10 +356,10 @@ echo $response;
 
         <div className="relative">
           <pre className="p-5 font-mono text-xs text-slate-200 bg-[#090d16] overflow-x-auto leading-relaxed selection:bg-brand-500 selection:text-white">
-            {codeSnippets[selectedLang]}
+            {activeSnippets[selectedLang]}
           </pre>
           <button
-            onClick={() => handleCopy(codeSnippets[selectedLang], 'snippet')}
+            onClick={() => handleCopy(activeSnippets[selectedLang], 'snippet')}
             className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#1e293b] hover:bg-[#334155] text-slate-300 text-xs font-medium transition-colors"
           >
             {copiedTab === 'snippet' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -246,11 +375,12 @@ echo $response;
           {[
             { method: 'POST', path: '/api/v1/generate', desc: 'Universal AI content generator (blogs, social, landing pages)' },
             { method: 'POST', path: '/api/v1/generate/blog', desc: 'Dedicated SEO blog & article generation endpoint' },
-            { method: 'POST', path: '/api/v1/generate/social', desc: 'Optimized social captions & hashtags generation' },
-            { method: 'POST', path: '/api/v1/generate/business', desc: 'Google Business Profile & local announcements' },
+            { method: 'POST', path: '/api/v1/images/generate', desc: 'High-speed AI image generation powered by Pixazo (FLUX Schnell / SDXL)' },
+            { method: 'POST', path: '/api/v1/images/from-content', desc: 'Generate platform-aware featured or hero image from content' },
+            { method: 'GET', path: '/api/v1/images', desc: 'Retrieve paginated history of generated image assets' },
+            { method: 'GET', path: '/api/v1/images/models', desc: 'List active and available image generation models' },
             { method: 'GET', path: '/api/v1/content/:id', desc: 'Retrieve previously generated content asset by ID' },
             { method: 'GET', path: '/api/v1/usage', desc: 'Check your API request and token consumption statistics' },
-            { method: 'GET', path: '/api/v1/models', desc: 'List active and available Gemini AI models' },
             { method: 'GET', path: '/api/v1/health', desc: 'System liveness, readiness, and Gemini connectivity probe' }
           ].map((ep) => (
             <div key={ep.path + ep.method} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-[#090d16] border border-[#1e293b] gap-2">
@@ -283,13 +413,12 @@ echo $response;
             <label className="font-semibold text-slate-300">Target Endpoint</label>
             <select
               value={testEndpoint}
-              onChange={(e) => setTestEndpoint(e.target.value)}
+              onChange={(e) => handleEndpointChange(e.target.value)}
               className="w-full bg-[#090d16] border border-[#1e293b] rounded-lg p-2.5 text-white font-mono"
             >
-              <option value="/api/v1/generate">POST /api/v1/generate</option>
-              <option value="/api/v1/generate/blog">POST /api/v1/generate/blog</option>
-              <option value="/api/v1/generate/social">POST /api/v1/generate/social</option>
-              <option value="/api/v1/generate/business">POST /api/v1/generate/business</option>
+              <option value="/api/v1/generate">POST /api/v1/generate (Text Content)</option>
+              <option value="/api/v1/generate/blog">POST /api/v1/generate/blog (SEO Article)</option>
+              <option value="/api/v1/images/generate">POST /api/v1/images/generate (Pixazo Image)</option>
             </select>
           </div>
 
@@ -318,16 +447,16 @@ echo $response;
         <button
           onClick={handleExecuteTest}
           disabled={testing}
-          className="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-xs font-semibold hover:bg-brand-600 disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-brand-600 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-brand-500/20 disabled:opacity-50 transition-all"
         >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          <span>{testing ? 'Executing request...' : 'Send Live Request'}</span>
+          <Play className={`w-3.5 h-3.5 ${testing ? 'animate-pulse' : ''}`} />
+          <span>{testing ? 'Sending Request...' : 'Send Request'}</span>
         </button>
 
         {testResponse && (
-          <div className="space-y-1.5 pt-2">
-            <span className="text-[10px] uppercase font-mono text-slate-500 font-semibold">Response Payload</span>
-            <pre className="p-4 rounded-lg bg-[#090d16] border border-[#1e293b] font-mono text-xs text-slate-200 overflow-x-auto max-h-[300px]">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-300">API Response</label>
+            <pre className="p-4 rounded-lg bg-[#090d16] border border-[#1e293b] font-mono text-xs text-slate-200 overflow-x-auto max-h-80 leading-relaxed">
               {testResponse}
             </pre>
           </div>

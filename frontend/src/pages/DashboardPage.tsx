@@ -11,7 +11,8 @@ import {
   Copy,
   Check,
   CheckCircle2,
-  Layers
+  Layers,
+  Image as ImageIcon
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { UsageMetrics, GeneratedContent } from '../types/index.js';
@@ -79,6 +80,13 @@ export const DashboardPage: React.FC = () => {
             >
               <Sparkles className="w-4 h-4" />
               <span>Generate Content</span>
+            </Link>
+            <Link
+              to="/images"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-pink-600 to-indigo-600 text-white text-sm font-semibold hover:from-pink-500 hover:to-indigo-500 shadow-lg shadow-pink-500/20 transition-all hover:scale-[1.02]"
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>AI Image Studio</span>
             </Link>
             <Link
               to="/docs"

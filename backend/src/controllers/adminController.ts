@@ -3,15 +3,17 @@ import { db } from '../database/db.js';
 import { ApiKeyService } from '../services/api/ApiKeyService.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
+import { ImageService } from '../services/image/image.service.js';
 
 export class AdminController {
   static async getOverview(req: Request, res: Response, next: NextFunction) {
     try {
-      const [users, keys, generations, requests] = await Promise.all([
+      const [users, keys, generations, requests, images] = await Promise.all([
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users'),
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM api_keys'),
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM content_generations'),
         db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM api_requests WHERE endpoint LIKE "%/generate%" OR api_key_id IS NOT NULL'),
+        db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM image_generations'),
       ]);
 
       const recentErrors = await db.query(
@@ -24,6 +26,7 @@ export class AdminController {
           totalUsers: users?.count || 0,
           totalApiKeys: keys?.count || 0,
           totalGenerations: generations?.count || 0,
+          totalImages: images?.count || 0,
           totalApiRequests: requests?.count || 0,
           recentErrors
         }
@@ -297,6 +300,38 @@ export class AdminController {
             quotaStatus: (throttleEvents?.count || 0) > 0 ? 'throttled' : (percentRemaining < 10 ? 'low' : 'healthy')
           },
           lastCheckedAt: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getImageStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const apiKey = (process.env.PIXAZO_API_KEY || config.image.pixazo.apiKey || '').trim();
+      const provider = config.image.provider;
+      const defaultModel = config.image.defaultModel;
+      const rateLimitMinute = config.image.rateLimitPerMinute;
+      const rateLimitDay = config.image.rateLimitPerDay;
+
+      const isConfigured = Boolean(apiKey);
+
+      const usage = await ImageService.getImageUsageStats();
+
+      res.status(200).json({
+        success: true,
+        imageStatus: {
+          provider,
+          defaultModel,
+          isConfigured,
+          status: isConfigured ? 'Configured' : 'Not Configured',
+          rateLimit: {
+            perMinute: rateLimitMinute,
+            perDay: rateLimitDay
+          },
+          usage,
+          models: ImageService.getAvailableModels()
         }
       });
     } catch (error) {

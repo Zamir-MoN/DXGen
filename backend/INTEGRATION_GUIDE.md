@@ -234,6 +234,44 @@ curl -X POST http://51.20.121.253:3101/api/v1/generate \
 
 ---
 
+### F. AI Image Generation (Pixazo FLUX Schnell)
+
+```bash
+curl -X POST http://51.20.121.253:3101/api/v1/images/generate \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Modern SaaS technology workspace with ambient neon lighting and ultra-wide monitor",
+    "model": "flux-schnell",
+    "style": "Commercial Photography",
+    "aspectRatio": "16:9"
+  }'
+```
+
+```javascript
+// Node.js Image Generation
+async function generateFeaturedImage(prompt) {
+  const res = await fetch('http://51.20.121.253:3101/api/v1/images/generate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.DXGEN_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      prompt,
+      model: 'flux-schnell',
+      style: 'Commercial Photography',
+      aspectRatio: '16:9'
+    })
+  });
+  const data = await res.json();
+  console.log('Image URL:', data.image.url);
+  return data.image;
+}
+```
+
+---
+
 ## 5. Request Parameters Reference
 
 | Field | Type | Required | Default | Description / Supported Values |

@@ -17,7 +17,9 @@ import {
   Briefcase,
   HelpCircle,
   Building,
-  Hash
+  Hash,
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { BusinessProfile } from '../types/index.js';
@@ -63,6 +65,13 @@ export const GeneratorPage: React.FC = () => {
   const [loadingStage, setLoadingStage] = useState('');
   const [generatedResult, setGeneratedResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Content-to-Image Generation States
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageStage, setImageStage] = useState('');
+  const [featuredImage, setFeaturedImage] = useState<any | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [copiedImageUrl, setCopiedImageUrl] = useState(false);
 
   // Prompt Preview Modal
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -167,6 +176,8 @@ export const GeneratorPage: React.FC = () => {
       setGeneratedResult(res.data);
       setEditableBody(res.data.content.body);
       setViewMode('preview');
+      setFeaturedImage(null);
+      setImageError(null);
 
       setTimeout(() => {
         animateContentIn(resultRef.current);
@@ -176,6 +187,45 @@ export const GeneratorPage: React.FC = () => {
     } finally {
       clearInterval(interval);
       setLoading(false);
+    }
+  };
+
+  const handleGenerateFeaturedImage = async () => {
+    if (!generatedResult) return;
+    setGeneratingImage(true);
+    setImageError(null);
+    setImageStage('Analyzing content...');
+
+    const stages = [
+      'Analyzing content...',
+      'Creating image prompt...',
+      'Generating image with Pixazo FLUX...',
+      'Processing result...'
+    ];
+    let sIdx = 0;
+    const interval = setInterval(() => {
+      sIdx = (sIdx + 1) % stages.length;
+      setImageStage(stages[sIdx]);
+    }, 2800);
+
+    try {
+      const res = await api.post('/images/from-content', {
+        contentId: generatedResult.contentId,
+        title: generatedResult.content.title,
+        topic: topic || generatedResult.content.title,
+        platform,
+        contentType,
+        style: platform === 'website' ? 'Commercial Photography' : 'Realistic'
+      });
+      clearInterval(interval);
+      if (res.data?.success && res.data?.image) {
+        setFeaturedImage(res.data.image);
+      }
+    } catch (err: any) {
+      clearInterval(interval);
+      setImageError(err.message || 'Failed to generate featured image.');
+    } finally {
+      setGeneratingImage(false);
     }
   };
 
@@ -729,8 +779,24 @@ export const GeneratorPage: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Actions: Copy, Export, Regenerate */}
+                {/* Actions: Generate Image, Copy, Export, Regenerate */}
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleGenerateFeaturedImage}
+                    disabled={generatingImage}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-600 via-indigo-500 to-cyan-500 text-white text-xs font-semibold hover:from-brand-500 hover:to-cyan-400 shadow-md shadow-brand-500/20 disabled:opacity-50 transition-all"
+                    title="Generate AI Hero Image using Pixazo"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>
+                      {generatingImage
+                        ? 'Creating Image...'
+                        : featuredImage
+                        ? 'Regenerate Image'
+                        : 'Generate Featured Image'}
+                    </span>
+                  </button>
+
                   <button
                     onClick={() => handleCopyText(editableBody, 'all')}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#1e293b] text-slate-300 text-xs font-medium hover:bg-[#334155] transition-colors"
@@ -753,13 +819,83 @@ export const GeneratorPage: React.FC = () => {
 
                   <button
                     onClick={handleGenerate}
-                    title="Regenerate"
+                    title="Regenerate Content"
                     className="p-1.5 rounded bg-[#1e293b] text-slate-300 hover:text-white hover:bg-[#334155] transition-colors"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
+
+              {/* Generating Featured Image State */}
+              {generatingImage && (
+                <div className="p-4 rounded-xl bg-[#090d16] border border-cyan-500/30 flex items-center gap-3 animate-pulse">
+                  <div className="w-9 h-9 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <ImageIcon className="w-5 h-5 animate-spin" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">{imageStage}</p>
+                    <p className="text-[11px] text-slate-500 font-mono">Pixazo FLUX Schnell is crafting a matching visual for this content</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Image Error Alert */}
+              {imageError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between">
+                  <span>{imageError}</span>
+                  <button onClick={handleGenerateFeaturedImage} className="text-xs text-red-300 underline font-medium">Retry</button>
+                </div>
+              )}
+
+              {/* Generated Featured Image Display Banner */}
+              {featuredImage && (
+                <div className="rounded-xl overflow-hidden bg-[#090d16] border border-[#1e293b] space-y-2 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-cyan-400 font-semibold flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Featured Hero Image (Pixazo FLUX)
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(featuredImage.url);
+                          setCopiedImageUrl(true);
+                          setTimeout(() => setCopiedImageUrl(false), 2000);
+                        }}
+                        className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-[#1e293b]"
+                      >
+                        {copiedImageUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedImageUrl ? 'Copied' : 'Copy URL'}</span>
+                      </button>
+
+                      <a
+                        href={featuredImage.url}
+                        download="featured-image.png"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-[#1e293b]"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Download</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="relative rounded-lg overflow-hidden max-h-72 bg-black/40 flex items-center justify-center">
+                    <img
+                      src={featuredImage.url}
+                      alt={featuredImage.prompt || 'Featured visual'}
+                      className="w-full h-auto object-cover max-h-72 rounded-lg"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 italic truncate">
+                    Prompt: {featuredImage.prompt}
+                  </p>
+                </div>
+              )}
 
               {/* Title Banner */}
               <div className="p-3.5 rounded-lg bg-[#090d16] border border-[#1e293b] space-y-1">

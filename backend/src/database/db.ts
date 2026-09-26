@@ -170,6 +170,30 @@ function createSchema() {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS image_generations (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      business_id TEXT,
+      content_id TEXT,
+      request_id TEXT,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      negative_prompt TEXT DEFAULT '',
+      style TEXT DEFAULT '',
+      aspect_ratio TEXT DEFAULT '1:1',
+      width INTEGER NOT NULL,
+      height INTEGER NOT NULL,
+      image_url TEXT NOT NULL,
+      status TEXT DEFAULT 'completed',
+      error_code TEXT,
+      generation_time_ms INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL,
+      FOREIGN KEY (content_id) REFERENCES content_generations(id) ON DELETE SET NULL
+    );
+
     -- Indexes for high-speed queries
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
@@ -178,6 +202,9 @@ function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_generations_created ON content_generations(created_at);
     CREATE INDEX IF NOT EXISTS idx_requests_api_key ON api_requests(api_key_id);
     CREATE INDEX IF NOT EXISTS idx_requests_created ON api_requests(created_at);
+    CREATE INDEX IF NOT EXISTS idx_image_generations_user ON image_generations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_image_generations_content ON image_generations(content_id);
+    CREATE INDEX IF NOT EXISTS idx_image_generations_created ON image_generations(created_at);
   `);
 }
 

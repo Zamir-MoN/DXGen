@@ -94,3 +94,32 @@ export interface RequestLog {
   ip: string;
   created_at: string;
 }
+
+export interface ImageGeneration {
+  id: string;
+  user_id?: string | null;
+  business_id?: string | null;
+  content_id?: string | null;
+  request_id?: string | null;
+  provider: string;
+  model: string;
+  prompt: string;
+  negative_prompt?: string;
+  style?: string;
+  aspect_ratio?: string;
+  width: number;
+  height: number;
+  image_url: string;
+  status: 'completed' | 'failed' | 'queued';
+  error_code?: string | null;
+  generation_time_ms: number;
+  created_at: string;
+}
+
+export interface ImageUsageStats {
+  imagesGeneratedToday: number;
+  imagesGeneratedThisMonth: number;
+  successfulImages: number;
+  failedImages: number;
+  averageGenerationTimeMs: number;
+}
