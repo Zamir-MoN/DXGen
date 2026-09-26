@@ -90,6 +90,10 @@ Generates structured content across any supported platform and content type.
   "location": "Global",
   "businessId": "optional_business_profile_id",
   "customInstructions": "Include a comparison between custom code and website builders.",
+  "includeImage": true,
+  "imageStyle": "Commercial Photography",
+  "imageAspectRatio": "16:9",
+  "imageModel": "flux-schnell",
   "seo": {
     "primaryKeyword": "web development services",
     "secondaryKeywords": ["custom website", "small business SEO"],
@@ -127,12 +131,25 @@ Generates structured content across any supported platform and content type.
     "wordCount": 1420,
     "readingTimeMinutes": 7
   },
+  "image": {
+    "id": "img_72948201a0bc",
+    "url": "https://pub-582b7213209642b9b995c96c95a30381.r2.dev/flux-schnell-cf/prompt-1790416688074-45041.png",
+    "width": 1280,
+    "height": 720,
+    "model": "flux-schnell",
+    "provider": "pixazo",
+    "style": "Commercial Photography",
+    "aspectRatio": "16:9",
+    "generationTimeMs": 28400,
+    "createdAt": "2026-09-26T17:30:00Z"
+  },
   "prompt": "ROLE: ...",
   "usage": {
     "model": "gemini-1.5-flash",
     "inputTokens": 412,
     "outputTokens": 1480,
-    "generationTimeMs": 842
+    "generationTimeMs": 842,
+    "imageGenerationTimeMs": 28400
   }
 }
 ```
