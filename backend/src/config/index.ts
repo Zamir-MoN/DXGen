@@ -45,7 +45,7 @@ export const config = {
     defaultModel: process.env.IMAGE_DEFAULT_MODEL || 'flux-schnell',
     defaultWidth: parseInt(process.env.IMAGE_DEFAULT_WIDTH || '1024', 10),
     defaultHeight: parseInt(process.env.IMAGE_DEFAULT_HEIGHT || '1024', 10),
-    timeoutMs: parseInt(process.env.IMAGE_REQUEST_TIMEOUT || '60000', 10),
+    timeoutMs: parseInt(process.env.IMAGE_REQUEST_TIMEOUT || '90000', 10),
     maxRetries: parseInt(process.env.IMAGE_MAX_RETRIES || '2', 10),
     rateLimitPerMinute: parseInt(process.env.IMAGE_RATE_LIMIT_PER_MINUTE || '5', 10),
     rateLimitPerDay: parseInt(process.env.IMAGE_RATE_LIMIT_PER_DAY || '20', 10),

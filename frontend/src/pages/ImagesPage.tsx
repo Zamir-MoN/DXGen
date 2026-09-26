@@ -133,7 +133,7 @@ export const ImagesPage: React.FC = () => {
         style,
         aspectRatio,
         negativePrompt: negativePrompt.trim() || undefined
-      });
+      }, { timeout: 120000 });
 
       clearInterval(interval);
 

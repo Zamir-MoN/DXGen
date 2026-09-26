@@ -216,7 +216,7 @@ export const GeneratorPage: React.FC = () => {
         platform,
         contentType,
         style: platform === 'website' ? 'Commercial Photography' : 'Realistic'
-      });
+      }, { timeout: 120000 });
       clearInterval(interval);
       if (res.data?.success && res.data?.image) {
         setFeaturedImage(res.data.image);

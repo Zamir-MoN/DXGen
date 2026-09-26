@@ -5,7 +5,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000,
+  timeout: 120000,
 });
 
 // Attach Authorization header if JWT token is stored

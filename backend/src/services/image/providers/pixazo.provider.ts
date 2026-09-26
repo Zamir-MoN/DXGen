@@ -89,12 +89,20 @@ export class PixazoProvider implements ImageProvider {
     }
 
     // Build the payload supported by Pixazo
+    // Note: FLUX Schnell gateway strictly accepts { prompt: string }. Sending negative_prompt causes gateway hangs.
+    const isFlux = model.toLowerCase().includes('flux');
+    let effectivePrompt = options.prompt.trim();
+
+    if (isFlux && options.negativePrompt && options.negativePrompt.trim()) {
+      effectivePrompt += `, without: ${options.negativePrompt.trim()}`;
+    }
+
     const payload: Record<string, any> = {
-      prompt: options.prompt.trim()
+      prompt: effectivePrompt
     };
 
-    // If negative prompt provided and model supports it
-    if (options.negativePrompt && options.negativePrompt.trim()) {
+    // Only send negative_prompt for models that explicitly support it (like SDXL)
+    if (!isFlux && options.negativePrompt && options.negativePrompt.trim()) {
       payload.negative_prompt = options.negativePrompt.trim();
     }
 
@@ -124,10 +132,9 @@ export class PixazoProvider implements ImageProvider {
       } catch (err: any) {
         lastError = err;
         
-        // Only retry retryable status codes (429, 500, 502, 503, 504, timeout)
-        const isRetryable = err.statusCode === 429 || 
-                            (err.statusCode >= 500 && err.statusCode <= 504) ||
-                            err.code === 'IMAGE_TIMEOUT';
+        // Do NOT retry timeouts (retrying an 80s timeout would make the request 160s+)
+        // Only retry temporary server errors (500, 502, 503, 504)
+        const isRetryable = (err.statusCode >= 500 && err.statusCode <= 504) && err.code !== 'IMAGE_TIMEOUT';
 
         if (!isRetryable || attempts > this.maxRetries) {
           break;
