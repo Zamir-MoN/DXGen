@@ -148,22 +148,28 @@ export class ContentImagePromptBuilder {
     const aspectRatio = ImagePromptBuilder.getPlatformAspectRatio(platform);
     const style = (params.style as string) || (platform === 'website' ? 'Commercial Photography' : 'Realistic');
 
-    // Extract core visual theme
-    const titleClean = (params.title || params.topic)
+    // Extract core visual theme without editorial headline noise
+    let subject = (params.title || params.topic)
       .replace(/[^\w\s-]/g, ' ')
+      .replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to)\b/gi, '')
+      .replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use))\b/gi, '')
+      .replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and care')
+      .replace(/\b(?:permanently|fast|easily|effectively|in\s+2026)\b/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    let visualConcept = `A striking visual representing "${titleClean}"`;
+    if (!subject) subject = params.topic.trim();
+
+    let visualConcept = `Aesthetic visual of ${subject}`;
 
     if (platform === 'website') {
-      visualConcept = `Create a professional editorial hero image representing ${titleClean}, clean modern aesthetic, sophisticated composition, suitable for a business blog hero image`;
+      visualConcept = `Aesthetic hero visual of ${subject}, clean modern composition, natural studio lighting`;
     } else if (platform === 'instagram') {
-      visualConcept = `Eye-catching lifestyle visual representing ${titleClean}, high contrast, aesthetic lighting, premium modern vibe`;
+      visualConcept = `Vibrant lifestyle visual of ${subject}, high contrast, aesthetic lighting, premium modern vibe`;
     } else if (platform === 'linkedin') {
-      visualConcept = `Executive business editorial visual representing ${titleClean}, modern workplace or enterprise concept, thoughtful and authoritative`;
+      visualConcept = `Executive commercial visual of ${subject}, modern professional setting, clean composition`;
     } else if (platform === 'google_business') {
-      visualConcept = `Welcoming, authentic high-quality local business setting representing ${titleClean}`;
+      visualConcept = `Authentic storefront visual of ${subject}, clean welcoming setting`;
     }
 
     const fullPrompt = ImagePromptBuilder.buildPrompt({
@@ -171,7 +177,7 @@ export class ContentImagePromptBuilder {
       style,
       platform,
       aspectRatio,
-      customDirectives: 'clean background, depth of field, photorealistic, no text, no typography'
+      customDirectives: 'depth of field, photorealistic, 8k uhd'
     });
 
     return {

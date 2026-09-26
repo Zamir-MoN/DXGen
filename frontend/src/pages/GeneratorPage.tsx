@@ -196,17 +196,23 @@ export const GeneratorPage: React.FC = () => {
       setFeaturedImage(null);
       setImageError(null);
 
-      // Auto-craft default image prompt based on the generated title and platform
-      const titleClean = (res.data.content.title || topic)
+      // Auto-craft clean, concise visual prompt optimized for FLUX Schnell
+      let cleanSubject = (res.data.content.title || topic)
         .replace(/[^\w\s-]/g, ' ')
+        .replace(/\b(?:the\s+definitive\s+guide\s+to|the\s+ultimate\s+guide\s+to|everything\s+you\s+need\s+to\s+know\s+about|step\s+by\s+step\s+guide\s+to)\b/gi, '')
+        .replace(/\b(?:how\s+to\s+(?:cure|fix|treat|overcome|get|build|start|use))\b/gi, '')
+        .replace(/\b(?:causes\s+and\s+(?:solutions|cures|treatments))\b/gi, 'solutions and wellness')
+        .replace(/\b(?:permanently|fast|easily|effectively|in\s+2026)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
 
+      if (!cleanSubject) cleanSubject = topic.trim();
+
       const defaultVisualPrompt = platform === 'website'
-        ? `Professional editorial hero image representing ${titleClean}, clean modern aesthetic, sophisticated composition, studio lighting, photorealistic, suitable for a business blog hero image, no text, no watermark`
+        ? `Aesthetic hero visual of ${cleanSubject}, clean modern composition, natural studio lighting, photorealistic, 8k uhd`
         : platform === 'instagram'
-        ? `Eye-catching lifestyle visual representing ${titleClean}, high contrast, aesthetic lighting, premium modern vibe, vibrant color palette, no text`
-        : `Executive business commercial visual representing ${titleClean}, clean composition, realistic commercial photography, high resolution, no text`;
+        ? `Vibrant lifestyle visual of ${cleanSubject}, high contrast, aesthetic lighting, premium modern vibe`
+        : `Executive commercial visual of ${cleanSubject}, modern professional setting, clean composition, studio softbox lighting`;
 
       setEditableImagePrompt(defaultVisualPrompt);
       setShowImagePromptEditor(true);
