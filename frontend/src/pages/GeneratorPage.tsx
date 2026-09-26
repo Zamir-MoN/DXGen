@@ -19,7 +19,9 @@ import {
   Building,
   Hash,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { BusinessProfile } from '../types/index.js';
@@ -75,6 +77,13 @@ export const GeneratorPage: React.FC = () => {
   const [featuredImage, setFeaturedImage] = useState<any | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [copiedImageUrl, setCopiedImageUrl] = useState(false);
+
+  // Step-by-Step Progress & Interactive Image Prompt Review
+  const [contentProgress, setContentProgress] = useState(0);
+  const [imageProgress, setImageProgress] = useState(0);
+  const [editableImagePrompt, setEditableImagePrompt] = useState('');
+  const [showImagePromptEditor, setShowImagePromptEditor] = useState(true);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
 
   // Prompt Preview Modal
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -134,30 +143,24 @@ export const GeneratorPage: React.FC = () => {
 
     setError(null);
     setLoading(true);
+    setContentProgress(15);
+    setLoadingStage('Initializing Gemini AI engine...');
 
-    // Animated loading stages sequence
-    const stages = includeImage ? [
-      'Preparing prompt & instructions...',
-      'Generating optimized content with Gemini AI...',
-      'Synthesizing SEO metadata & headings...',
-      'Extracting visual concept for hero visual...',
-      'Synthesizing matching AI image with Pixazo FLUX...',
-      'Assembling complete visual article...'
-    ] : [
-      'Preparing prompt...',
-      'Optimizing instructions...',
-      'Generating content with Gemini AI...',
-      'Formatting response...'
+    const stages = [
+      { pct: 30, text: 'Drafting high-conversion content...' },
+      { pct: 60, text: 'Structuring headings, FAQ & SEO metadata...' },
+      { pct: 85, text: 'Extracting visual scene concepts...' },
+      { pct: 95, text: 'Finalizing publication draft...' }
     ];
 
-    let stageIdx = 0;
-    setLoadingStage(stages[0]);
+    let sIdx = 0;
     const interval = setInterval(() => {
-      stageIdx++;
-      if (stageIdx < stages.length) {
-        setLoadingStage(stages[stageIdx]);
+      if (sIdx < stages.length) {
+        setContentProgress(stages[sIdx].pct);
+        setLoadingStage(stages[sIdx].text);
+        sIdx++;
       }
-    }, includeImage ? 3000 : 700);
+    }, 1200);
 
     try {
       const payload = {
@@ -173,10 +176,6 @@ export const GeneratorPage: React.FC = () => {
         location,
         businessId: businessProfileId || undefined,
         customInstructions,
-        includeImage,
-        imageStyle: includeImage ? imageStyle : undefined,
-        imageAspectRatio: includeImage ? imageAspectRatio : undefined,
-        imageModel: 'flux-schnell',
         seo: seoOpen ? {
           primaryKeyword,
           secondaryKeywords: secondaryKeywords.split(',').map(s => s.trim()).filter(Boolean),
@@ -186,62 +185,93 @@ export const GeneratorPage: React.FC = () => {
         } : undefined
       };
 
-      const res = await api.post('/generate', payload, { timeout: 120000 });
+      const res = await api.post('/generate', payload, { timeout: 60000 });
+      clearInterval(interval);
+      setContentProgress(100);
+      setLoadingStage('Content generation complete!');
+
       setGeneratedResult(res.data);
       setEditableBody(res.data.content.body);
       setViewMode('preview');
-      if (res.data.image) {
-        setFeaturedImage(res.data.image);
-      } else {
-        setFeaturedImage(null);
-      }
+      setFeaturedImage(null);
       setImageError(null);
+
+      // Auto-craft default image prompt based on the generated title and platform
+      const titleClean = (res.data.content.title || topic)
+        .replace(/[^\w\s-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const defaultVisualPrompt = platform === 'website'
+        ? `Professional editorial hero image representing ${titleClean}, clean modern aesthetic, sophisticated composition, studio lighting, photorealistic, suitable for a business blog hero image, no text, no watermark`
+        : platform === 'instagram'
+        ? `Eye-catching lifestyle visual representing ${titleClean}, high contrast, aesthetic lighting, premium modern vibe, vibrant color palette, no text`
+        : `Executive business commercial visual representing ${titleClean}, clean composition, realistic commercial photography, high resolution, no text`;
+
+      setEditableImagePrompt(defaultVisualPrompt);
+      setShowImagePromptEditor(true);
 
       setTimeout(() => {
         animateContentIn(resultRef.current);
       }, 50);
     } catch (err: any) {
+      clearInterval(interval);
       setError(err.message || 'Generation failed. Please try again.');
     } finally {
-      clearInterval(interval);
       setLoading(false);
     }
   };
 
   const handleGenerateFeaturedImage = async () => {
-    if (!generatedResult) return;
+    if (!editableImagePrompt.trim()) {
+      setImageError('Please enter an image prompt describing the desired visual.');
+      return;
+    }
+
     setGeneratingImage(true);
     setImageError(null);
-    setImageStage('Analyzing content...');
+    setImageProgress(15);
+    setImageStage('Connecting to Pixazo FLUX gateway...');
 
     const stages = [
-      'Analyzing content...',
-      'Creating image prompt...',
-      'Generating image with Pixazo FLUX...',
-      'Processing result...'
+      { pct: 30, text: 'Connecting to Pixazo FLUX gateway...' },
+      { pct: 55, text: 'Synthesizing visual geometry & diffusion steps...' },
+      { pct: 78, text: 'Refining photorealistic textures & lighting...' },
+      { pct: 92, text: 'Finalizing Cloudflare CDN asset delivery...' }
     ];
+
     let sIdx = 0;
     const interval = setInterval(() => {
-      sIdx = (sIdx + 1) % stages.length;
-      setImageStage(stages[sIdx]);
-    }, 2800);
+      if (sIdx < stages.length) {
+        setImageProgress(stages[sIdx].pct);
+        setImageStage(stages[sIdx].text);
+        sIdx++;
+      }
+    }, 4500);
 
     try {
-      const res = await api.post('/images/from-content', {
-        contentId: generatedResult.contentId,
-        title: generatedResult.content.title,
-        topic: topic || generatedResult.content.title,
-        platform,
-        contentType,
-        style: platform === 'website' ? 'Commercial Photography' : 'Realistic'
+      const res = await api.post('/images/generate', {
+        prompt: editableImagePrompt.trim(),
+        model: 'flux-schnell',
+        style: imageStyle,
+        aspectRatio: imageAspectRatio,
+        metadata: {
+          contentId: generatedResult?.contentId,
+          topic: topic || generatedResult?.content?.title
+        }
       }, { timeout: 120000 });
+
       clearInterval(interval);
+      setImageProgress(100);
+      setImageStage('Image generation complete!');
+
       if (res.data?.success && res.data?.image) {
         setFeaturedImage(res.data.image);
+        setShowImagePromptEditor(false);
       }
     } catch (err: any) {
       clearInterval(interval);
-      setImageError(err.message || 'Failed to generate featured image.');
+      setImageError(err.message || 'Image generation failed. Please try again.');
     } finally {
       setGeneratingImage(false);
     }
@@ -715,89 +745,40 @@ export const GeneratorPage: React.FC = () => {
             />
           </div>
 
-          {/* Integrated AI Featured Image (Pixazo FLUX) */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#0c1427] to-[#0a1120] border border-cyan-500/25 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <ImageIcon className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white">Matching Featured Image</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-medium">Pixazo FLUX</span>
+          {/* Step 1 Generate Button with Progress Bar */}
+          <div className="space-y-2 pt-1">
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-cyan-500 text-white text-sm font-semibold hover:from-brand-500 hover:to-cyan-400 shadow-lg shadow-brand-500/25 disabled:opacity-50 transition-all flex flex-col items-center justify-center gap-1.5"
+            >
+              {loading ? (
+                <div className="w-full space-y-1.5 py-0.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-medium text-white">
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>{loadingStage}</span>
+                    </span>
+                    <span className="font-mono text-cyan-200 font-bold">{contentProgress}%</span>
                   </div>
-                  <p className="text-[11px] text-slate-400">Auto-craft visual prompt & render hero visual with text</p>
+                  <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-cyan-300 h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${contentProgress}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeImage}
-                  onChange={(e) => setIncludeImage(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-[#1e293b] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
-              </label>
-            </div>
-
-            {includeImage && (
-              <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#1e293b]/70">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-slate-300">Visual Style</label>
-                  <select
-                    value={imageStyle}
-                    onChange={(e) => setImageStyle(e.target.value)}
-                    className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
-                  >
-                    <option value="Commercial Photography">Commercial Photography</option>
-                    <option value="Realistic">Realistic</option>
-                    <option value="Editorial">Editorial</option>
-                    <option value="Minimal">Minimal</option>
-                    <option value="3D Render">3D Render</option>
-                    <option value="Luxury">Luxury</option>
-                    <option value="Cinematic">Cinematic</option>
-                    <option value="Artistic">Artistic</option>
-                    <option value="Lifestyle">Lifestyle</option>
-                    <option value="Product Photography">Product Photography</option>
-                  </select>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-300" />
+                  <span>Step 1: Generate Content</span>
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-slate-300">Aspect Ratio</label>
-                  <select
-                    value={imageAspectRatio}
-                    onChange={(e) => setImageAspectRatio(e.target.value)}
-                    className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
-                  >
-                    <option value="16:9">16:9 Landscape (Hero Banner)</option>
-                    <option value="1:1">1:1 Square (Social / GBP)</option>
-                    <option value="4:5">4:5 Portrait (Instagram)</option>
-                    <option value="9:16">9:16 Vertical (Stories)</option>
-                  </select>
-                </div>
-              </div>
-            )}
+              )}
+            </button>
+            <p className="text-[11px] text-slate-500 text-center">
+              Gemini AI generates publication copy first so you can review text & visual prompt before rendering images.
+            </p>
           </div>
-
-          {/* Generate Button with Stage Animations */}
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="w-full py-3 rounded-lg bg-gradient-to-r from-brand-600 via-brand-500 to-cyan-500 text-white text-sm font-semibold hover:from-brand-500 hover:to-cyan-400 shadow-lg shadow-brand-500/25 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <span className="text-xs animate-pulse">{loadingStage}</span>
-              </div>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                <span>{includeImage ? 'Generate Content & Matching Image' : 'Generate Content'}</span>
-              </>
-            )}
-          </button>
         </div>
 
         {/* Right Column: Output & Professional Content Interface (7 cols) */}
@@ -808,25 +789,40 @@ export const GeneratorPage: React.FC = () => {
                 <Sparkles className="w-8 h-8" />
               </div>
               <div className="max-w-md space-y-2">
-                <h3 className="text-base font-semibold text-white">Ready for your prompt</h3>
+                <h3 className="text-base font-semibold text-white">Step 1: Ready for your prompt</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Configure your parameters on the left and click Generate Content. The system will build an optimized prompt internally and return formatted SEO-ready copy.
+                  Configure your parameters on the left and click Generate Content. Once the text is generated, you will be able to review the content and customize the matching image prompt in Step 2.
                 </p>
               </div>
             </div>
           )}
 
           {loading && (
-            <div className="h-[560px] flex flex-col items-center justify-center text-center p-8 space-y-4">
+            <div className="h-[560px] flex flex-col items-center justify-center text-center p-8 space-y-5">
               <div className="relative">
                 <div className="w-16 h-16 rounded-2xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center text-brand-400">
                   <Sparkles className="w-8 h-8 animate-pulse text-cyan-400" />
                 </div>
                 <span className="absolute -inset-1 rounded-2xl border border-cyan-400/40 animate-ping pointer-events-none" />
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-white">{loadingStage}</p>
-                <p className="text-xs text-slate-500 font-mono">Gemini AI model is structuring publication-grade copy</p>
+              <div className="w-full max-w-sm space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-white flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                    {loadingStage}
+                  </span>
+                  <span className="font-mono text-cyan-400 font-bold">{contentProgress}%</span>
+                </div>
+                <div className="w-full bg-[#1e293b] rounded-full h-2 overflow-hidden border border-[#334155]/40">
+                  <div
+                    className="bg-gradient-to-r from-brand-500 via-indigo-500 to-cyan-400 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${contentProgress}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                  <span>Step 1 of 2: AI Content Drafting</span>
+                  <span>Fast (~5-10s)</span>
+                </div>
               </div>
             </div>
           )}
@@ -923,75 +919,189 @@ export const GeneratorPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Generating Featured Image State */}
-              {generatingImage && (
-                <div className="p-4 rounded-xl bg-[#090d16] border border-cyan-500/30 flex items-center gap-3 animate-pulse">
-                  <div className="w-9 h-9 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                    <ImageIcon className="w-5 h-5 animate-spin" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-white">{imageStage}</p>
-                    <p className="text-[11px] text-slate-500 font-mono">Pixazo FLUX Schnell is crafting a matching visual for this content</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Image Error Alert */}
-              {imageError && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between">
-                  <span>{imageError}</span>
-                  <button onClick={handleGenerateFeaturedImage} className="text-xs text-red-300 underline font-medium">Retry</button>
-                </div>
-              )}
-
-              {/* Generated Featured Image Display Banner */}
-              {featuredImage && (
-                <div className="rounded-xl overflow-hidden bg-[#090d16] border border-[#1e293b] space-y-2 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-cyan-400 font-semibold flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      Featured Hero Image (Pixazo FLUX)
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(featuredImage.url);
-                          setCopiedImageUrl(true);
-                          setTimeout(() => setCopiedImageUrl(false), 2000);
-                        }}
-                        className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-[#1e293b]"
-                      >
-                        {copiedImageUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        <span>{copiedImageUrl ? 'Copied' : 'Copy URL'}</span>
-                      </button>
-
-                      <a
-                        href={featuredImage.url}
-                        download="featured-image.png"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-[#1e293b]"
-                      >
-                        <Download className="w-3 h-3" />
-                        <span>Download</span>
-                      </a>
+              {/* Step 2: AI Matching Featured Visual Studio */}
+              <div className="rounded-xl overflow-hidden bg-[#090d16] border border-cyan-500/25 p-4 space-y-3.5 shadow-lg shadow-cyan-950/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white tracking-wide">
+                          {featuredImage ? 'Featured Hero Visual' : 'Step 2: Review & Customize AI Image Prompt'}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono font-medium border border-cyan-500/30">
+                          Pixazo FLUX
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        {featuredImage
+                          ? 'High-resolution AI visual synchronized with your article'
+                          : 'Review or edit the auto-crafted visual prompt below, then generate your matching image'}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="relative rounded-lg overflow-hidden max-h-72 bg-black/40 flex items-center justify-center">
-                    <img
-                      src={featuredImage.url}
-                      alt={featuredImage.prompt || 'Featured visual'}
-                      className="w-full h-auto object-cover max-h-72 rounded-lg"
-                    />
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 italic truncate">
-                    Prompt: {featuredImage.prompt}
-                  </p>
+                  {featuredImage && (
+                    <button
+                      onClick={() => setShowImagePromptEditor(!showImagePromptEditor)}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-medium px-2.5 py-1 rounded bg-[#1e293b]"
+                    >
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>{showImagePromptEditor ? 'Hide Prompt' : 'Tweak Prompt'}</span>
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {/* Image Generating Progress Bar */}
+                {generatingImage && (
+                  <div className="p-4 rounded-xl bg-[#0c1427] border border-cyan-500/40 space-y-2.5 animate-pulse">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-white flex items-center gap-2">
+                        <span className="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                        {imageStage}
+                      </span>
+                      <span className="font-mono text-cyan-400 font-bold">{imageProgress}%</span>
+                    </div>
+                    <div className="w-full bg-[#1e293b] rounded-full h-2.5 overflow-hidden border border-[#334155]/40">
+                      <div
+                        className="bg-gradient-to-r from-brand-500 via-indigo-500 to-cyan-400 h-2.5 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${imageProgress}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                      <span>Diffusion steps rendering...</span>
+                      <span>Est. ~15-30s</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Error Alert */}
+                {imageError && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between">
+                    <span>{imageError}</span>
+                    <button onClick={handleGenerateFeaturedImage} className="text-xs text-red-300 underline font-medium">Retry</button>
+                  </div>
+                )}
+
+                {/* Prompt Editor (Shown before generation or when clicking Tweak Prompt) */}
+                {(showImagePromptEditor || !featuredImage) && !generatingImage && (
+                  <div className="space-y-3 pt-2 border-t border-[#1e293b]/70">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-slate-200 flex items-center justify-between">
+                        <span>Visual Scene Prompt (Editable)</span>
+                        <span className="text-[10px] text-slate-500 font-normal">Auto-crafted from generated title</span>
+                      </label>
+                      <textarea
+                        value={editableImagePrompt}
+                        onChange={(e) => setEditableImagePrompt(e.target.value)}
+                        rows={2}
+                        placeholder="Describe the image you want Pixazo to create..."
+                        className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 outline-none leading-relaxed font-sans"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-medium text-slate-300">Style</label>
+                        <select
+                          value={imageStyle}
+                          onChange={(e) => setImageStyle(e.target.value)}
+                          className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                        >
+                          <option value="Commercial Photography">Commercial Photography</option>
+                          <option value="Realistic">Realistic</option>
+                          <option value="Editorial">Editorial</option>
+                          <option value="Minimal">Minimal</option>
+                          <option value="3D Render">3D Render</option>
+                          <option value="Luxury">Luxury</option>
+                          <option value="Cinematic">Cinematic</option>
+                          <option value="Artistic">Artistic</option>
+                          <option value="Lifestyle">Lifestyle</option>
+                          <option value="Product Photography">Product Photography</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-medium text-slate-300">Aspect Ratio</label>
+                        <select
+                          value={imageAspectRatio}
+                          onChange={(e) => setImageAspectRatio(e.target.value)}
+                          className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                        >
+                          <option value="16:9">16:9 Landscape (Hero Banner)</option>
+                          <option value="1:1">1:1 Square (Social / GBP)</option>
+                          <option value="4:5">4:5 Portrait (Instagram)</option>
+                          <option value="9:16">9:16 Vertical (Stories)</option>
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={handleGenerateFeaturedImage}
+                        disabled={generatingImage || !editableImagePrompt.trim()}
+                        className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-cyan-600 to-brand-500 hover:from-cyan-500 hover:to-brand-400 text-white text-xs font-semibold shadow-md shadow-cyan-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{featuredImage ? 'Regenerate Visual' : '✨ Generate AI Image (Step 2)'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rendered Image Card */}
+                {featuredImage && (
+                  <div className="space-y-2 pt-2 border-t border-[#1e293b]/70">
+                    <div
+                      className="relative rounded-lg overflow-hidden max-h-80 bg-black/40 flex items-center justify-center group cursor-pointer"
+                      onClick={() => setImageModalOpen(true)}
+                    >
+                      <img
+                        src={featuredImage.url}
+                        alt={featuredImage.prompt || 'Featured visual'}
+                        className="w-full h-auto object-cover max-h-80 rounded-lg group-hover:scale-[1.01] transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <span className="px-3 py-1.5 rounded-lg bg-black/70 text-white text-xs font-medium flex items-center gap-1.5">
+                          <Maximize2 className="w-3.5 h-3.5" />
+                          <span>Click to Zoom</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="text-[11px] text-slate-500 italic truncate max-w-sm">
+                        Prompt: {featuredImage.prompt}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(featuredImage.url);
+                            setCopiedImageUrl(true);
+                            setTimeout(() => setCopiedImageUrl(false), 2000);
+                          }}
+                          className="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded bg-[#1e293b]"
+                        >
+                          {copiedImageUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedImageUrl ? 'Copied' : 'Copy URL'}</span>
+                        </button>
+
+                        <a
+                          href={featuredImage.url}
+                          download="featured-image.png"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded bg-[#1e293b]"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Download</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Title Banner */}
               <div className="p-3.5 rounded-lg bg-[#090d16] border border-[#1e293b] space-y-1">
@@ -1113,6 +1223,69 @@ export const GeneratorPage: React.FC = () => {
         onClose={() => setPreviewModalOpen(false)}
         prompt={previewPromptText}
       />
+
+      {/* Fullscreen Image Preview Modal */}
+      {imageModalOpen && featuredImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setImageModalOpen(false)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-[#090d16] border border-[#1e293b] rounded-2xl overflow-hidden shadow-2xl p-3 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-2 pt-1 border-b border-[#1e293b]/70 pb-2">
+              <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                Featured Hero Image (Pixazo FLUX.1 Schnell)
+              </span>
+              <button
+                onClick={() => setImageModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#1e293b] transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-auto max-h-[72vh] flex items-center justify-center bg-black/40 rounded-xl">
+              <img
+                src={featuredImage.url}
+                alt={featuredImage.prompt || 'Featured visual'}
+                className="max-w-full max-h-[72vh] object-contain rounded-lg"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pb-1 text-xs">
+              <p className="text-[11px] text-slate-400 max-w-lg truncate italic">
+                "{featuredImage.prompt}"
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(featuredImage.url);
+                    setCopiedImageUrl(true);
+                    setTimeout(() => setCopiedImageUrl(false), 2000);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                >
+                  {copiedImageUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedImageUrl ? 'Copied' : 'Copy URL'}</span>
+                </button>
+                <a
+                  href={featuredImage.url}
+                  download="featured-image.png"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Image</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
