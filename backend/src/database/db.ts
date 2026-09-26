@@ -123,6 +123,8 @@ function createSchema() {
       slug TEXT DEFAULT '',
       faq TEXT DEFAULT '[]',
       cta TEXT DEFAULT '',
+      image_url TEXT DEFAULT '',
+      image_id TEXT DEFAULT '',
       model TEXT NOT NULL,
       input_tokens INTEGER DEFAULT 0,
       output_tokens INTEGER DEFAULT 0,
@@ -206,6 +208,14 @@ function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_image_generations_content ON image_generations(content_id);
     CREATE INDEX IF NOT EXISTS idx_image_generations_created ON image_generations(created_at);
   `);
+
+  // Safe schema migrations for existing databases
+  try {
+    sqliteDb.exec('ALTER TABLE content_generations ADD COLUMN image_url TEXT DEFAULT ""');
+  } catch {}
+  try {
+    sqliteDb.exec('ALTER TABLE content_generations ADD COLUMN image_id TEXT DEFAULT ""');
+  } catch {}
 }
 
 function seedInitialData() {

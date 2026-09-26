@@ -29,8 +29,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
   const navItems = isAdmin
     ? [
         { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
-        { to: '/images', label: 'AI Images', icon: ImageIcon, badge: 'Pixazo' },
+        { to: '/generate', label: 'AI Content Studio', icon: Sparkles, badge: 'Text + Image' },
+        { to: '/images', label: 'AI Image Studio', icon: ImageIcon, badge: 'Pixazo' },
         { to: '/history', label: 'Content History', icon: History },
         { to: '/api-keys', label: 'API Keys', icon: KeyRound },
         { to: '/usage', label: 'Usage & Analytics', icon: BarChart3 },
@@ -39,8 +39,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
         { to: '/admin', label: 'Admin Panel', icon: ShieldCheck, badge: 'Owner' },
       ]
     : [
-        { to: '/generate', label: 'Generate Content', icon: Sparkles, badge: 'AI' },
-        { to: '/images', label: 'AI Images', icon: ImageIcon, badge: 'Pixazo' },
+        { to: '/generate', label: 'AI Content Studio', icon: Sparkles, badge: 'Text + Image' },
+        { to: '/images', label: 'AI Image Studio', icon: ImageIcon, badge: 'Pixazo' },
         { to: '/history', label: 'Content History', icon: History },
       ];
 

@@ -67,6 +67,9 @@ export const GeneratorPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Content-to-Image Generation States
+  const [includeImage, setIncludeImage] = useState(true);
+  const [imageStyle, setImageStyle] = useState('Commercial Photography');
+  const [imageAspectRatio, setImageAspectRatio] = useState('16:9');
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageStage, setImageStage] = useState('');
   const [featuredImage, setFeaturedImage] = useState<any | null>(null);
@@ -133,7 +136,14 @@ export const GeneratorPage: React.FC = () => {
     setLoading(true);
 
     // Animated loading stages sequence
-    const stages = [
+    const stages = includeImage ? [
+      'Preparing prompt & instructions...',
+      'Generating optimized content with Gemini AI...',
+      'Synthesizing SEO metadata & headings...',
+      'Extracting visual concept for hero visual...',
+      'Synthesizing matching AI image with Pixazo FLUX...',
+      'Assembling complete visual article...'
+    ] : [
       'Preparing prompt...',
       'Optimizing instructions...',
       'Generating content with Gemini AI...',
@@ -147,7 +157,7 @@ export const GeneratorPage: React.FC = () => {
       if (stageIdx < stages.length) {
         setLoadingStage(stages[stageIdx]);
       }
-    }, 700);
+    }, includeImage ? 3000 : 700);
 
     try {
       const payload = {
@@ -163,6 +173,10 @@ export const GeneratorPage: React.FC = () => {
         location,
         businessId: businessProfileId || undefined,
         customInstructions,
+        includeImage,
+        imageStyle: includeImage ? imageStyle : undefined,
+        imageAspectRatio: includeImage ? imageAspectRatio : undefined,
+        imageModel: 'flux-schnell',
         seo: seoOpen ? {
           primaryKeyword,
           secondaryKeywords: secondaryKeywords.split(',').map(s => s.trim()).filter(Boolean),
@@ -172,11 +186,15 @@ export const GeneratorPage: React.FC = () => {
         } : undefined
       };
 
-      const res = await api.post('/generate', payload);
+      const res = await api.post('/generate', payload, { timeout: 120000 });
       setGeneratedResult(res.data);
       setEditableBody(res.data.content.body);
       setViewMode('preview');
-      setFeaturedImage(null);
+      if (res.data.image) {
+        setFeaturedImage(res.data.image);
+      } else {
+        setFeaturedImage(null);
+      }
       setImageError(null);
 
       setTimeout(() => {
@@ -275,23 +293,29 @@ export const GeneratorPage: React.FC = () => {
     setTimeout(() => setCopiedSection(null), 2000);
   };
 
-  const handleDownload = (format: 'md' | 'json' | 'txt') => {
+  const handleDownload = (format: 'md' | 'json' | 'txt' | 'html') => {
     if (!generatedResult) return;
     let contentStr = '';
     let filename = `${(generatedResult.content.slug || 'content')}.${format}`;
     let mimeType = 'text/plain';
 
+    const imageMd = featuredImage?.url ? `![${generatedResult.content.title}](${featuredImage.url})\n\n` : '';
+    const imageHtml = featuredImage?.url ? `<p><img src="${featuredImage.url}" alt="${generatedResult.content.title}" class="hero-image" /></p>\n` : '';
+
     if (format === 'json') {
-      contentStr = JSON.stringify(generatedResult, null, 2);
+      contentStr = JSON.stringify({ ...generatedResult, featuredImage }, null, 2);
       mimeType = 'application/json';
     } else if (format === 'md') {
-      contentStr = `# ${generatedResult.content.title}\n\n${editableBody}`;
+      contentStr = `${imageMd}# ${generatedResult.content.title}\n\n${editableBody}`;
       if (generatedResult.content.cta) {
         contentStr += `\n\n---\n**Call To Action:** ${generatedResult.content.cta}`;
       }
       mimeType = 'text/markdown';
+    } else if (format === 'html') {
+      contentStr = `<article class="dxgen-article">\n${imageHtml}<h1>${generatedResult.content.title}</h1>\n<div>${editableBody}</div>\n</article>`;
+      mimeType = 'text/html';
     } else {
-      contentStr = `${generatedResult.content.title}\n\n${editableBody}`;
+      contentStr = `${imageMd}${generatedResult.content.title}\n\n${editableBody}`;
     }
 
     const blob = new Blob([contentStr], { type: mimeType });
@@ -691,6 +715,71 @@ export const GeneratorPage: React.FC = () => {
             />
           </div>
 
+          {/* Integrated AI Featured Image (Pixazo FLUX) */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#0c1427] to-[#0a1120] border border-cyan-500/25 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-white">Matching Featured Image</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-medium">Pixazo FLUX</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">Auto-craft visual prompt & render hero visual with text</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeImage}
+                  onChange={(e) => setIncludeImage(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-[#1e293b] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+              </label>
+            </div>
+
+            {includeImage && (
+              <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#1e293b]/70">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-300">Visual Style</label>
+                  <select
+                    value={imageStyle}
+                    onChange={(e) => setImageStyle(e.target.value)}
+                    className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                  >
+                    <option value="Commercial Photography">Commercial Photography</option>
+                    <option value="Realistic">Realistic</option>
+                    <option value="Editorial">Editorial</option>
+                    <option value="Minimal">Minimal</option>
+                    <option value="3D Render">3D Render</option>
+                    <option value="Luxury">Luxury</option>
+                    <option value="Cinematic">Cinematic</option>
+                    <option value="Artistic">Artistic</option>
+                    <option value="Lifestyle">Lifestyle</option>
+                    <option value="Product Photography">Product Photography</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-300">Aspect Ratio</label>
+                  <select
+                    value={imageAspectRatio}
+                    onChange={(e) => setImageAspectRatio(e.target.value)}
+                    className="w-full bg-[#090d16] border border-[#1e293b] focus:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                  >
+                    <option value="16:9">16:9 Landscape (Hero Banner)</option>
+                    <option value="1:1">1:1 Square (Social / GBP)</option>
+                    <option value="4:5">4:5 Portrait (Instagram)</option>
+                    <option value="9:16">9:16 Vertical (Stories)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Generate Button with Stage Animations */}
           <button
             onClick={handleGenerate}
@@ -705,7 +794,7 @@ export const GeneratorPage: React.FC = () => {
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>Generate Content</span>
+                <span>{includeImage ? 'Generate Content & Matching Image' : 'Generate Content'}</span>
               </>
             )}
           </button>
@@ -798,11 +887,17 @@ export const GeneratorPage: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => handleCopyText(editableBody, 'all')}
+                    onClick={() => {
+                      const textToCopy = featuredImage?.url 
+                        ? `![${generatedResult.content.title}](${featuredImage.url})\n\n# ${generatedResult.content.title}\n\n${editableBody}`
+                        : `# ${generatedResult.content.title}\n\n${editableBody}`;
+                      handleCopyText(textToCopy, 'all');
+                    }}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#1e293b] text-slate-300 text-xs font-medium hover:bg-[#334155] transition-colors"
+                    title={featuredImage ? 'Copy Markdown with Image Embed' : 'Copy All Content'}
                   >
                     {copiedSection === 'all' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedSection === 'all' ? 'Copied!' : 'Copy'}</span>
+                    <span>{copiedSection === 'all' ? 'Copied All!' : 'Copy'}</span>
                   </button>
 
                   <div className="relative group">
@@ -810,8 +905,9 @@ export const GeneratorPage: React.FC = () => {
                       <Download className="w-3.5 h-3.5" />
                       <span>Export</span>
                     </button>
-                    <div className="absolute right-0 mt-1 hidden group-hover:block z-20 w-32 bg-[#0f172a] border border-[#1e293b] rounded-lg shadow-xl py-1">
+                    <div className="absolute right-0 mt-1 hidden group-hover:block z-20 w-36 bg-[#0f172a] border border-[#1e293b] rounded-lg shadow-xl py-1">
                       <button onClick={() => handleDownload('md')} className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-[#1e293b]">Markdown (.md)</button>
+                      <button onClick={() => handleDownload('html')} className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-[#1e293b]">HTML Article (.html)</button>
                       <button onClick={() => handleDownload('txt')} className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-[#1e293b]">Plain Text (.txt)</button>
                       <button onClick={() => handleDownload('json')} className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-[#1e293b]">JSON (.json)</button>
                     </div>

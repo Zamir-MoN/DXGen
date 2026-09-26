@@ -16,6 +16,10 @@ export const generateContentSchema = z.object({
   businessId: z.string().optional(),
   customInstructions: z.string().max(1000, 'Custom instructions must be under 1000 characters').optional(),
   modelOverride: z.string().optional(),
+  includeImage: z.boolean().optional(),
+  imageStyle: z.string().optional(),
+  imageAspectRatio: z.string().optional(),
+  imageModel: z.string().optional(),
   seo: z.object({
     primaryKeyword: z.string().optional(),
     secondaryKeywords: z.array(z.string()).optional(),
